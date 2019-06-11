@@ -17,12 +17,12 @@ import os
 import torch
 import torch.nn as nn
 import jactorch
-import jactorch.nn as jacnn
+from .prroi_pool import PrRoIPool2D
+# import jactorch.nn as jacnn
 
 from . import functional
 
-# DEBUG = bool(int(os.getenv('DEBUG_SCENE_GRAPH', 0)))
-DEBUG = False
+DEBUG = bool(int(os.getenv('DEBUG_SCENE_GRAPH', 0)))
 
 __all__ = ['SceneGraph']
 
@@ -35,11 +35,11 @@ class SceneGraph(nn.Module):
         self.output_dims = output_dims
         self.downsample_rate = downsample_rate
 
-        self.object_roi_pool = jacnn.PrRoIPool2D(
+        self.object_roi_pool = PrRoIPool2D(
             self.pool_size, self.pool_size, 1.0 / downsample_rate)
-        self.context_roi_pool = jacnn.PrRoIPool2D(
+        self.context_roi_pool = PrRoIPool2D(
             self.pool_size, self.pool_size, 1.0 / downsample_rate)
-        self.relation_roi_pool = jacnn.PrRoIPool2D(
+        self.relation_roi_pool = PrRoIPool2D(
             self.pool_size, self.pool_size, 1.0 / downsample_rate)
 
         if not DEBUG:
@@ -66,11 +66,11 @@ class SceneGraph(nn.Module):
                 return rep
 
             self.pool_size = 32
-            self.object_roi_pool = jacnn.PrRoIPool2D(
+            self.object_roi_pool = PrRoIPool2D(
                 32, 32, 1.0 / downsample_rate)
-            self.context_roi_pool = jacnn.PrRoIPool2D(
+            self.context_roi_pool = PrRoIPool2D(
                 32, 32, 1.0 / downsample_rate)
-            self.relation_roi_pool = jacnn.PrRoIPool2D(
+            self.relation_roi_pool = PrRoIPool2D(
                 32, 32, 1.0 / downsample_rate)
             self.context_feature_extract = gen_replicate(2)
             self.relation_feature_extract = gen_replicate(3)
