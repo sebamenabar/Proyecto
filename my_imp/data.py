@@ -1,6 +1,7 @@
 import copy
 import json
 import os.path as osp
+from attrdict import AttrDict
 
 import nltk
 import numpy as np
@@ -15,6 +16,7 @@ import jactorch.transforms.bbox as T
 
 from .vocab import Vocab
 from .copied.scene_annotation import annotate_objects
+from .copied.program_translator import clevr_to_nsclseq, nsclseq_to_nsclqsseq
 
 def gen_image_transform(img_size):
     return transforms.Compose([
@@ -86,6 +88,7 @@ class MyDataset(Dataset):
         self.prepare_data()
 
     def prepare_data(self):
+
         print('Preparing scenes')
         dummy_fp = osp.join(self.image_root, self.scenes[0]['image_filename'])
         dummy_image = Image.open(dummy_fp).convert('RGB')
@@ -101,6 +104,9 @@ class MyDataset(Dataset):
             del scene['relationships']
             del scene['objects_detection']
             del scene['directions']
+
+            # break
+
         print('\nPreparing questions')
         for i, q in enumerate(self.questions):
             print(f'\r{i + 1}/{len(self.questions)}', end='')
@@ -109,6 +115,12 @@ class MyDataset(Dataset):
             q['question'] = np.array(self.vocab.map_sequence(nltk.word_tokenize(q['question'].lower())), dtype='int64')
             q['answer_raw'] = q['answer']
             q['answer'] = self.ans.word2idx[q['answer']]
+            q['program_raw'] = q['program']
+            q['program_seq'] = clevr_to_nsclseq(q['program'])
+            q['program_qsseq'] = nsclseq_to_nsclqsseq(q['program_seq'])
+            q['question_type'] = q['program_seq'][-1]['op']
+
+            # break
         print()
 
     def __getitem__(self, index):
@@ -132,5 +144,17 @@ def collate_fn(batch):
     objects_len = torch.tensor([len(d['objects']) for d in batch], dtype=torch.uint8)
     objects = pad_sequence([d['objects'] for d in batch], batch_first=True)
     questions = pad_sequence([torch.tensor(d['question'], dtype=torch.uint8) for d in batch], batch_first=True)
+    programs = AttrDict({
+        'program_raw': [d['program_raw'] for d in batch],
+        'program_seq': [d['program_seq'] for d in batch],
+        'program_qsseq': [d['program_qsseq'] for d in batch],
+    })
 
-    return (images, objects, objects_len, questions), answers
+    return AttrDict({
+        'image': images,
+        'answer': answers,
+        'objects_length': objects_len,
+        'objects': objects,
+        'questions': questions,
+        **programs,
+    })

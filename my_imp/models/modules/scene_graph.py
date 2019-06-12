@@ -20,7 +20,7 @@ import jactorch
 from .prroi_pool import PrRoIPool2D
 # import jactorch.nn as jacnn
 
-from . import functional
+from . import functional 
 
 DEBUG = bool(int(os.getenv('DEBUG_SCENE_GRAPH', 0)))
 
@@ -94,8 +94,10 @@ class SceneGraph(nn.Module):
         outputs = list()
         objects_index = 0
         for i in range(input.size(0)):
-            box = objects[objects_index:objects_index +
-                          objects_length[i].item()]
+            # box = objects[objects_index:objects_index +
+            #               objects_length[i].item()]
+            box = objects[i]
+            box = objects[i, :objects_length[i].item()]
             objects_index += objects_length[i].item()
 
             with torch.no_grad():

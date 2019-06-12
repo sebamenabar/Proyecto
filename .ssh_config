@@ -1,0 +1,5 @@
+Host server1
+     HostName 0.tcp.ngrok.io
+     User root
+     Port 16338
+     IdentityFile /Users/sebamenabar/.ssh/id_rsa
