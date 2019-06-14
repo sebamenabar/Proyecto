@@ -5,7 +5,7 @@ from torchvision.models import resnet
 import math
 from attrdict import AttrDict
 
-from my_imp.models.nscl import NSCLModel
+from my_imp.models.modules.scene_graph import SceneGraph
 
 
 SNG_ARGS = AttrDict({
@@ -80,7 +80,8 @@ class PositionalEncoding(nn.Module):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
-        self.register_buffer('pe', pe)
+        # self.register_buffer('pe', pe)
+        self.pe = nn.Parameter(pe, requires_grad=False)
 
     def forward(self, x):
         x = x + self.pe[:, :x.size(1)]
@@ -88,7 +89,7 @@ class PositionalEncoding(nn.Module):
 
 
 class Embeddings(nn.Module):
-    def __init__(self, d_model=256, vocab=50, dropout=0.5):
+    def __init__(self, d_model=256, vocab=256, dropout=0.5):
         super(Embeddings, self).__init__()
         self.lut = nn.Embedding(vocab, d_model, )
         self.d_model = d_model
@@ -111,6 +112,7 @@ class ASR(nn.Module):
         super().__init__()
 
         self.vocab = vocab
+        self.sng_args = sng_args
 
         self.embeddings = Embeddings(
             d_model=dim, dropout=dropout, vocab=len(vocab))
@@ -137,18 +139,28 @@ class ASR(nn.Module):
 
     def forward(self, image, objects, objects_length, questions):
 
-        f_scene = self.resnet(image)
+        image = self.resnet(image)
         # TEMP hardcoded dimensions
-        f_scene = f_scene.view(image.size(
+        image = image.view(image.size(
             0), self.sng_args.feature_dim, 16, 24)
-        objects = self.scene_graph(f_scene, objects, objects_length)
-        print(objects.size())
+        objects = self.scene_graph(image, objects, objects_length)
+        objects = torch.nn.utils.rnn.pad_sequence([obj[1] for obj in objects], batch_first=True)
+        # print(len(objects))
+        # print(objects)
+
+        # return objects
 
         questions = self.pe(self.embeddings(questions))
-        print(questions.size())
+        # print(questions.size())
         # questions = questions.permute(1, 0, -1)
 
-        return
+        # return questions
+
+        objects = objects.permute(1, 0, 2)
+        questions = questions.permute(1, 0, 2)
+
+        # print(objects.size())
+        # print(questions.size())
 
         prev_objects = objects
         prev_questions = questions
@@ -159,8 +171,13 @@ class ASR(nn.Module):
             prev_objects = objects
             prev_questions = questions
 
-        objects = self.maxpool(objects.permute(1, 2, 0)).squeeze(2)
-        questions = self.maxpool(questions.permute(1, 2, 0)).squeeze(2)
+        # objects = self.maxpool(objects.permute(1, 2, 0)).squeeze(2)
+        # questions = self.maxpool(questions.permute(1, 2, 0)).squeeze(2)
+        objects = torch.max(objects.permute(1, 2, 0), dim=2)[0] # .squeeze(2)
+        questions = torch.max(questions.permute(1, 2, 0), dim=2)[0] # .squeeze(2)
+
+        # print(objects.size())
+        # print(questions.size())
 
         ans = self.linear(torch.cat((objects, questions), dim=1))
 

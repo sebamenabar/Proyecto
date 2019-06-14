@@ -166,7 +166,7 @@ def collate_fn(batch):
     answers = torch.tensor([d['answer'] for d in batch], dtype=torch.uint8)
     objects_len = torch.tensor([len(d['objects']) for d in batch], dtype=torch.uint8)
     objects = pad_sequence([d['objects'] for d in batch], batch_first=True)
-    questions = pad_sequence([torch.tensor(d['question'], dtype=torch.uint8) for d in batch], batch_first=True)
+    questions = pad_sequence([torch.tensor(d['question'], dtype=torch.long) for d in batch], batch_first=True)
     # programs = AttrDict({
     #    'program_raw': [d['program_raw'] for d in batch],
     #    'program_seq': [d['program_seq'] for d in batch],
