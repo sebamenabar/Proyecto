@@ -9,12 +9,13 @@
 # Distributed under terms of the MIT license.
 
 import os
+import six
 import torch
 import torch.nn.functional as F
 
 from jacinle.utils.enum import JacEnum
 from .losses import MultitaskLossBase
-from nscl.datasets.definition import gdef
+# from nscl.datasets.definition import gdef
 
 DEBUG_SCENE_LOSS = int(os.getenv('DEBUG_SCENE_LOSS', '0'))
 
@@ -39,7 +40,7 @@ operation_signatures = [
         ('count_greater', [], ['object_set', 'object_set'], 'bool'),
     ]
 qtype2atype_dict = {name: ret_type
-                    for name, _, _, ret_type in self.operation_signatures}
+                    for name, _, _, ret_type in operation_signatures}
 
 class SceneParsingLoss(MultitaskLossBase):
     def __init__(self, used_concepts, add_supervision=False):
@@ -141,6 +142,13 @@ class SceneParsingLoss(MultitaskLossBase):
 
         return monitors, outputs
 
+def canonize_answer(answer):
+        if answer in ('yes', 'no'):
+            answer = (answer == 'yes')
+        elif isinstance(answer, six.string_types) and answer.isdigit():
+            answer = int(answer)
+            assert 0 <= answer <= 10
+        return answer
 
 class QALoss(MultitaskLossBase):
     def __init__(self, add_supervision):
@@ -169,7 +177,7 @@ class QALoss(MultitaskLossBase):
             loss_w = loss_weights[i] if loss_weights is not None else 1
             acc_w = accuracy_weights[i] if accuracy_weights is not None else 1
 
-            gt = feed_dict['answer'][j]
+            gt = canonize_answer(feed_dict['answer_raw'][j])
             response_query_type = qtype2atype_dict[query_type]
 
             question_type = feed_dict['question_type'][j]

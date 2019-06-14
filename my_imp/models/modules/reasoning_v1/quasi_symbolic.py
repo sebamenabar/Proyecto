@@ -59,6 +59,26 @@ def set_test_quantize(mode):
     global _test_quantize
     _test_quantize = InferenceQuantizationMethod.from_string(mode)
 
+operation_signatures = [
+        # Part 1: CLEVR dataset.
+        ('scene', [], [], 'object_set'),
+        ('filter', ['concept'], ['object_set'], 'object_set'),
+        ('relate', ['relational_concept'], ['object'], 'object_set'),
+        ('relate_attribute_equal', ['attribute'], ['object'], 'object_set'),
+        ('intersect', [], ['object_set', 'object_set'], 'object_set'),
+        ('union', [], ['object_set', 'object_set'], 'object_set'),
+
+        ('query', ['attribute'], ['object'], 'word'),
+        ('query_attribute_equal', ['attribute'], ['object', 'object'], 'bool'),
+        ('exist', [], ['object_set'], 'bool'),
+        ('count', [], ['object_set'], 'integer'),
+        ('count_less', [], ['object_set', 'object_set'], 'bool'),
+        ('count_equal', [], ['object_set', 'object_set'], 'bool'),
+        ('count_greater', [], ['object_set', 'object_set'], 'bool'),
+    ]
+
+operation_signatures_dict = {v[0]: v[1:] for v in operation_signatures}
+
 
 
 class ConceptQuantizationContext(nn.Module):
@@ -392,7 +412,7 @@ class DifferentiableReasoning(nn.Module):
                     continue
 
                 inputs = []
-                for inp, inp_type in zip(block['inputs'], gdef.operation_signatures_dict[op][1]):
+                for inp, inp_type in zip(block['inputs'], operation_signatures_dict[op][1]):
                     inp = buffer[inp]
                     if inp_type == 'object':
                         inp = ctx.unique(inp)

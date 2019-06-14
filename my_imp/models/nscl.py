@@ -31,6 +31,27 @@ relational_concepts = {
     'spatial_relation': ['left', 'right', 'front', 'behind']
 }
 
+operation_signatures = [
+        # Part 1: CLEVR dataset.
+        ('scene', [], [], 'object_set'),
+        ('filter', ['concept'], ['object_set'], 'object_set'),
+        ('relate', ['relational_concept'], ['object'], 'object_set'),
+        ('relate_attribute_equal', ['attribute'], ['object'], 'object_set'),
+        ('intersect', [], ['object_set', 'object_set'], 'object_set'),
+        ('union', [], ['object_set', 'object_set'], 'object_set'),
+
+        ('query', ['attribute'], ['object'], 'word'),
+        ('query_attribute_equal', ['attribute'], ['object', 'object'], 'bool'),
+        ('exist', [], ['object_set'], 'bool'),
+        ('count', [], ['object_set'], 'integer'),
+        ('count_less', [], ['object_set', 'object_set'], 'bool'),
+        ('count_equal', [], ['object_set', 'object_set'], 'bool'),
+        ('count_greater', [], ['object_set', 'object_set'], 'bool'),
+    ]
+
+operation_signatures_dict = {v[0]: v[1:] for v in operation_signatures}
+
+
 class NSCLModel(nn.Module):
     def __init__(
             self,
@@ -88,7 +109,7 @@ class NSCLModel(nn.Module):
 
         f_scene = self.resnet(input['image'])
         # TEMP hardcode dimensions
-        print(f_scene.size())
+        # print(f_scene.size())
 
         f_scene = f_scene.view(input['image'].size(0), self.sng_args.feature_dim, 16, 24)
         
@@ -100,4 +121,4 @@ class NSCLModel(nn.Module):
         outputs['buffers'] = buffers
         outputs['answer'] = answers
 
-        return 
+        return programs, buffers, answers

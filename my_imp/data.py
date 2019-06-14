@@ -70,19 +70,22 @@ class MyDataset(Dataset):
         self.ans = Vocab.from_json(self.ans_dict_json)
 
         print('Loading scenes from: "{}".'.format(self.scenes_json))
-        self.scenes = json.load(open(self.scenes_json, 'r'))['scenes']
+        with open(self.scenes_json, 'r') as f:
+            self.scenes = json.load(f)['scenes']
 
         if isinstance(self.questions_json, (tuple, list)):
             self.questions = list()
             for filename in self.questions_json:
                 print('Loading questions from: "{}".'.format(filename))
-                self.questions.extend(
-                    json.load(open(filename, 'r'))['questions'])
+                with open(filename, 'r') as f:
+                    self.questions.extend(
+                        json.load(f)['questions'])
         else:
             print('Loading questions from: "{}".'.format(
                 questions_json))
-            self.questions = json.load(open(self.questions_json, 'r'))[
-                'questions']
+            with open(self.questions_json, 'r') as f:
+                self.questions = json.load(f)[
+                    'questions']
 
         if sample_size:
             if seed:
@@ -140,16 +143,17 @@ class MyDataset(Dataset):
         print()
 
     def __getitem__(self, index):
-        fd = self.questions[index]
-        scene = self.scenes[fd['image_index']]
+        # fd = self.questions[index]
+        # scene = self.scenes[fd['image_index']]
 
-        image = Image.open(scene['image_filename']).convert('RGB')
-        image = self.image_transform(image)
+        # image = Image.open(scene['image_filename']).convert('RGB')
+        # image = self.image_transform(image)
 
+        # Testing without vars because of memory leaks
         return {
-            'image': image,
-            **fd,
-            'objects': scene['objects'],
+            'image': self.image_transform(Image.open(self.scenes[self.questions[index]['image_index']]['image_filename']).convert('RGB')),
+            **self.questions[index],
+            'objects': self.scenes[self.questions[index]['image_index']]['objects'],
             }
 
     def __len__(self):
@@ -178,5 +182,7 @@ def collate_fn(batch):
         'questions': questions,
         'program_qsseq': program_qsseq,
         'question_type': [d['question_type'] for d in batch],
+        'question_raw': [d['question_raw'] for d in batch],
+        'answer_raw': [d['answer_raw'] for d in batch],
         # **programs,
     })
