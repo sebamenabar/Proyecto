@@ -167,7 +167,7 @@ def collate_fn(batch):
     # batch_size = len(batch)
 
     images = torch.stack([d['image'] for d in batch])
-    answers = torch.tensor([d['answer'] for d in batch], dtype=torch.uint8)
+    answers = torch.tensor([d['answer'] for d in batch], dtype=torch.long)
     objects_len = torch.tensor([len(d['objects']) for d in batch], dtype=torch.uint8)
     objects = pad_sequence([d['objects'] for d in batch], batch_first=True)
     questions = pad_sequence([torch.tensor(d['question'], dtype=torch.long) for d in batch], batch_first=True)
