@@ -107,10 +107,10 @@ class MyDataset(Dataset):
         print('Preparing scenes')
         dummy_fp = osp.join(self.image_root, self.scenes[self.questions[0]['image_index']]['image_filename'])
         dummy_image = Image.open(dummy_fp).convert('RGB')
-        if type(self.scene) is list:
-            scene_iter = self.scene
+        if type(self.scenes) is list:
+            scene_iter = self.scenes
         else:
-            scene_iter = self.scene.values()
+            scene_iter = self.scenes.values()
         for i, scene in enumerate(scene_iter):
             # scene = scenes['scenes'][i]
             print(f'\r{i + 1}/{len(self.scenes)}', end='')
