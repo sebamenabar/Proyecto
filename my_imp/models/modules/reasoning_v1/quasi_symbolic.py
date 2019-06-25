@@ -22,8 +22,8 @@ import jactorch.nn.functional as jacf
 
 from jacinle.logging import get_logger
 from jacinle.utils.enum import JacEnum
-from nscl.datasets.common.program_executor import ParameterResolutionMode
-from nscl.datasets.definition import gdef
+# from nscl.datasets.common.program_executor import ParameterResolutionMode
+# from nscl.datasets.definition import gdef
 from . import concept_embedding, concept_embedding_ls
 from . import quasi_symbolic_debug
 
@@ -51,6 +51,10 @@ class InferenceQuantizationMethod(JacEnum):
     STANDARD = 1
     EVERYTHING = 2
 
+class ParameterResolutionMode(JacEnum):
+    DETERMINISTIC = 'deterministic'
+    PROBABILISTIC_SAMPLE = 'probabilistic_sample'
+    PROBABILISTIC_ARGMAX = 'probabilistic_argmax'
 
 _test_quantize = InferenceQuantizationMethod.STANDARD
 

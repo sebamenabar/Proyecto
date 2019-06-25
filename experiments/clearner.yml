@@ -1,0 +1,19 @@
+lr: 0.001
+wd: 0.0001
+img_size: 256
+num_workers: 2
+use_cuda: True
+batch_size: 64
+ans_dict_json: '/content/clevr_sample_mod/CLEVR_built_dictionaries.json'
+train_ds:
+  ds_root: '/content/clevr_sample_mod/train/'
+  image_root: '/content/clevr_sample_mod/train/images/'
+  vocab_json: '/content/clevr_sample_mod/train/vocab.json'
+  scenes_json: '/content/clevr_sample_mod/train/scenes.json'
+  questions_json: '/content/clevr_sample_mod/train/questions.json'
+val_ds:
+  ds_root: '/content/clevr_sample_mod/val/'
+  image_root: '/content/clevr_sample_mod/val/images/'
+  vocab_json: '/content/clevr_sample_mod/val/vocab.json'
+  scenes_json: '/content/clevr_sample_mod/val/scenes.json'
+  questions_json: '/content/clevr_sample_mod/val/questions.json'
