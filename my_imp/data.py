@@ -138,7 +138,7 @@ class DatasetV2(Dataset):
                 nltk.word_tokenize(q['question'].lower())), dtype='int32')
             q['answer_raw'] = q['answer']
             q['answer'] = self.ans.word2idx[q['answer']]
-            # q['program_raw'] = q['program']
+            q['program_raw'] = q['program']
             # q['program_seq'] = clevr_to_nsclseq(q['program'])
             program_seq = clevr_to_nsclseq(q['program'])
             q['program_qsseq'] = nsclseq_to_nsclqsseq(program_seq)
