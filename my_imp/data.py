@@ -1,5 +1,6 @@
 import copy
 import json
+import pickle
 import random
 import os.path as osp
 from attrdict import AttrDict
@@ -120,8 +121,8 @@ class DatasetV2(Dataset):
             # scene['objects_raw'] = scene['objects']
             scene['objects'] = self.bbox_transform(dummy_image, objects)
             scene['scene_size'] = len(scene['objects'])
-            scene['image_filename'] = osp.join(
-                self.image_root, scene['image_filename'])
+            # scene['image_filename'] = osp.join(
+            #     self.image_root, scene['image_filename'])
 
             del scene['relationships']
             del scene['objects_detection']
@@ -158,7 +159,7 @@ class DatasetV2(Dataset):
 
         # Testing without vars because of memory leaks
         return {
-            'image': self.image_transform(Image.open(self.scenes[self.questions[index]['image_index']]['image_filename']).convert('RGB')),
+            'image': self.image_transform(Image.open(osp.join(self.image_root, self.scenes[self.questions[index]['image_index']]['image_filename'])).convert('RGB')),
             **self.questions[index],
             'objects': self.scenes[self.questions[index]['image_index']]['objects'],
         }
