@@ -42,9 +42,11 @@ def norm_bbox(bbox, initial_size=initial_size, final_size=final_size):
 class ClevrDataset(data.Dataset):
     def __init__(self, data_dir, img_dir, scenes_json, split='train'):
 
+        print('Loading data')
         with open(os.path.join(data_dir, '{}.pkl'.format(split)), 'rb') as f:
             self.data = pickle.load(f)
         
+        print('Loading features')
         fp_data = os.path.join(data_dir, '{}_features.h5'.format(split))
         if os.path.exists(fp_data):
             self.img = h5py.File(fp_data, 'r')['features']
@@ -52,7 +54,7 @@ class ClevrDataset(data.Dataset):
             self.img = h5py.File(os.path.join(
                 data_dir, '{}.h5'.format(split)), 'r')['features']
         
-
+        print('Loading scenes')
         with open(scenes_json, 'r') as f:
             self.scenes = json.load(f)['scenes']
         self.imgfile2idx = {

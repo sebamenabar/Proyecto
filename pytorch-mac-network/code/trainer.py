@@ -49,7 +49,7 @@ class Trainer():
             self.log_dir = os.path.join(self.path, 'Log')
             mkdir_p(self.model_dir)
             mkdir_p(self.log_dir)
-            self.writer = SummaryWriter(log_dir=self.log_dir)
+            self.writer = SummaryWriter(logdir=self.log_dir)
             sys.stdout = Logger(logfile=os.path.join(self.path, "logfile.log"))
 
         self.data_dir = cfg.DATASET.DATA_DIR
@@ -66,12 +66,17 @@ class Trainer():
         torch.cuda.set_device(self.gpus[0])
         cudnn.benchmark = True
 
+
+        img_dir = cfg.DATASET.IMG_DIR
+
         # load dataset
-        self.dataset = ClevrDataset(data_dir=self.data_dir, split="train")
+        train_scenes_json = cfg.DATASET.TRAIN_SCENES_JSON
+        self.dataset = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=train_scenes_json, split="train")
         self.dataloader = DataLoader(dataset=self.dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                        num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
 
-        self.dataset_val = ClevrDataset(data_dir=self.data_dir, split="val")
+        val_scenes_json = cfg.DATASET.VAL_SCENES_JSON
+        self.dataset_val = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=val_scenes_json, split="val")
         self.dataloader_val = DataLoader(dataset=self.dataset_val, batch_size=200, drop_last=True,
                                          shuffle=False, num_workers=cfg.WORKERS, collate_fn=collate_fn)
 
@@ -146,7 +151,7 @@ class Trainer():
             ######################################################
             # (1) Prepare training data
             ######################################################
-            image, question, question_len, answer = data['image'], data['question'], data['question_length'], data['answer']
+            image, question, question_len, answer, objects = data['image'], data['question'], data['question_length'], data['answer'], data['objects']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
@@ -165,7 +170,7 @@ class Trainer():
             ############################
             self.optimizer.zero_grad()
 
-            scores = self.model(image, question, question_len)
+            scores = self.model(image, question, question_len, objects)
             loss = self.loss_fn(scores, answer)
             loss.backward()
 
@@ -262,7 +267,7 @@ class Trainer():
             if max_iter is not None and _iteration == max_iter:
                 break
 
-            image, question, question_len, answer = data['image'], data['question'], data['question_length'], data['answer']
+            image, question, question_len, answer, objects = data['image'], data['question'], data['question_length'], data['answer'], data['objects']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
@@ -273,8 +278,8 @@ class Trainer():
                 answer = answer.cuda().squeeze()
 
             with torch.no_grad():
-                scores = self.model(image, question, question_len)
-                scores_ema = self.model_ema(image, question, question_len)
+                scores = self.model(image, question, question_len, objects)
+                scores_ema = self.model_ema(image, question, question_len, objects)
 
             correct_ema = scores_ema.detach().argmax(1) == answer
             accuracy_ema = correct_ema.sum().cpu().numpy() / answer.shape[0]

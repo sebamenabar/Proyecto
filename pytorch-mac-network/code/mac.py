@@ -9,7 +9,8 @@ from utils import *
 
 def load_MAC(cfg, vocab):
     kwargs = {'vocab': vocab,
-              'max_step': cfg.TRAIN.MAX_STEPS
+              'max_step': cfg.TRAIN.MAX_STEPS,
+              'recv_objects': cfg.TRAIN.RECV_OBJECTS,
               }
 
     model = MACNetwork(cfg, **kwargs)

@@ -27,13 +27,16 @@ __C.TRAIN.MAX_STEPS = 4
 __C.TRAIN.EALRY_STOPPING = True
 __C.TRAIN.PATIENCE = 5
 __C.TRAIN.VAR_DROPOUT = False
+__C.TRAIN.RECV_OBJECTS = False
 __C.TRAIN = dict(__C.TRAIN)
 
 # Dataset options
 __C.DATASET = edict()
 __C.DATASET.DATA_DIR = ''
 __C.DATASET = dict(__C.DATASET)
-
+__C.DATASET.TRAIN_SCENES_JSON = ''
+__C.DATASET.VAL_SCENES_JSON = ''
+__C.DATASET.IMG_DIR = ''
 
 def _merge_a_into_b(a, b):
     """Merge config dictionary a into config dictionary b, clobbering the
