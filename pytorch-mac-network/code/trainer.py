@@ -158,7 +158,7 @@ class Trainer():
             ######################################################
             # (1) Prepare training data
             ######################################################
-            image, question, question_len, answer, objects = data['image'], data['question'], data['question_length'], data['answer'], data['objects']
+            image, question, question_len, answer, objects = data['raw_image'], data['question'], data['question_length'], data['answer'], data['boxes']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
@@ -274,7 +274,7 @@ class Trainer():
             if max_iter is not None and _iteration == max_iter:
                 break
 
-            image, question, question_len, answer, objects = data['image'], data['question'], data['question_length'], data['answer'], data['objects']
+            image, question, question_len, answer, objects = data['raw_image'], data['question'], data['question_length'], data['answer'], data['boxes']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)

@@ -22,7 +22,7 @@ from PIL import Image
 from config import cfg
 
 initial_size = (320, 480)
-final_size = (149, 224)
+final_size = (224, 224)
 
 _transform = transforms.Compose([
     transforms.Resize(final_size),
@@ -125,18 +125,7 @@ def collate_fn(batch):
         boxes.append(box)
         raw_images.append(raw_image)
 
-    if getattr(collate_fn, 'incl_objs', False):
-        raw_images = torch.stack(raw_images)
-        raw_images = raw_images.unsqueeze(1)
-        raw_images = raw_images.repeat(1, max_objects_len, 2, 1, 1)
-        raw_images[:, :, 3:, :, :] = 0
-
-        for img_number, image_boxes in enumerate(boxes):
-            for obj_number, box in enumerate(image_boxes):
-                raw_images[img_number, obj_number, 3:, box[1]:box[1]+box[3], box[0]:box[0]+box[2]] = raw_images[img_number, obj_number, :3, box[1]:box[1]+box[3], box[0]:box[0]+box[2]]
-
-
     return {'image': torch.stack(images), 'question': torch.from_numpy(questions),
             'answer': torch.LongTensor(answers), 'question_length': lengths,
-            'objects': raw_images,
+            'raw_image': torch.stack(raw_images), 'boxes': boxes,
             }

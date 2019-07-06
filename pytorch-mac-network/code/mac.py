@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.init as init
 from torch.autograd import Variable
 from torchvision.models import resnet34
+from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 from utils import *
 
@@ -218,8 +219,12 @@ class InputUnit(nn.Module):
         self.dim = module_dim
         self.cfg = cfg
 
+        self.fpn = resnet_fpn_backbone('resnet101', pretrained=True)
+        # No actualizar pesos de resnet
+        for param in self.fpn.body.parameters():
+            param.requires_grad = False
         self.stem = nn.Sequential(nn.Dropout(p=0.18),
-                                  nn.Conv2d(1024, module_dim, 3, 1, 1),
+                                  nn.Conv2d(256, module_dim, 3, 1, 1),
                                   nn.ELU(),
                                   nn.Dropout(p=0.18),
                                   nn.Conv2d(module_dim, module_dim, kernel_size=3, stride=1, padding=1),
@@ -238,9 +243,15 @@ class InputUnit(nn.Module):
         b_size = question.size(0)
 
         # get image features
-        img = self.stem(image)
-        img = img.view(b_size, self.dim, -1)
-        img = img.permute(0,2,1)
+        fmaps = self.fpn(image)
+
+        fmaps = {
+            '14x14': self.stem(fmaps[2]).view(b_size, self.dim, -1).permute(0,2,1),
+            '56x56': self.stem(fmaps[0]).view(b_size, self.dim, 56, 56),
+            }
+
+        # img = img.view(b_size, self.dim, -1)
+        # img = img.permute(0,2,1)
 
         # get question and contextual word embeddings
         embed = self.encoder_embed(question)
@@ -254,7 +265,7 @@ class InputUnit(nn.Module):
 
         contextual_words, _ = nn.utils.rnn.pad_packed_sequence(contextual_words, batch_first=True)
 
-        return question_embedding, contextual_words, img
+        return question_embedding, contextual_words, fmaps
 
 
 class OutputUnit(nn.Module):
@@ -307,25 +318,20 @@ class MACNetwork(nn.Module):
                                     stride=(2, 2), padding=(3, 3), bias=False))
             self.obj_layers = nn.Sequential(*self.obj_layers)
 
-    def forward(self, image, question, question_len, objects=None):
+    def forward(self, image, question, question_len, bboxes=None):
         # get image, word, and sentence embeddings
-        question_embedding, contextual_words, img = self.input_unit(image, question, question_len)
+        question_embedding, contextual_words, fmaps = self.input_unit(image, question, question_len)
 
         if self.recv_objects:
-            bsz, objs_len = objects.size()[:2]
+            bsz, objs_len = bboxes.size()[:2]
             objects = self.obj_layers(objects.view(bsz * objs_len, 6, 149, 224))
             objects = self.obj_linear(objects.squeeze(-1).squeeze(-1))
             objects = objects.view(bsz, objs_len, -1)
-            # print(objects.size())
 
-            # img = torch.cat((img, objects), dim=1)
             img = objects
-            # print(img.size())
-
-        # return 
 
         # apply MacCell
-        memory = self.mac(contextual_words, question_embedding, img, question_len, objects)
+        memory = self.mac(contextual_words, question_embedding, fmaps['14x14'], question_len, bboxes)
 
         # get classification
         out = self.output_unit(question_embedding, memory)
