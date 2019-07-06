@@ -119,18 +119,15 @@ class ReadUnit(nn.Module):
         # compute interactions between knowledge base and memory
         know = self.dropout(know)
 
-        # print(1, know.size())
         if memDpMask is not None:
             if self.training:
                 memory = applyVarDpMask(memory, memDpMask, 0.85)
         else:
             memory = self.dropout(memory)
         know_proj = self.kproj(know)
-        # print(2, know_proj.size())
         memory_proj = self.mproj(memory)
         memory_proj = memory_proj.unsqueeze(1)
         interactions = know_proj * memory_proj
-        # print(3, interactions.size())
 
         # project memory interactions back to hidden dimension
         interactions = torch.cat([interactions, know_proj], -1)
@@ -138,14 +135,11 @@ class ReadUnit(nn.Module):
         interactions = self.activation(interactions)
         interactions = self.concat_2(interactions)
 
-        # print(4, interactions.size())
-
         ## Step 2: compute interactions with control
         control = control.unsqueeze(1)
         interactions = interactions * control
         interactions = self.activation(interactions)
 
-        # print(5, interactions.size())
 
         ## Step 3: sum attentions up over the knowledge base
         # transform vectors to attention distribution
@@ -242,12 +236,8 @@ class InputUnit(nn.Module):
     def forward(self, image, question, question_len):
         b_size = question.size(0)
         
-        print('image', image.size())
-        print(image)
         # get image features
         fmaps = self.fpn(image)
-
-        print('input unit', fmaps)
 
         fmaps = {
             '14x14': self.stem(fmaps[2]).view(b_size, self.dim, -1).permute(0,2,1),
