@@ -5,6 +5,8 @@ from torch.autograd import Variable
 from torchvision.models import resnet34
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
+from torch.nn.utils.rnn import pad_sequence
+
 from utils import *
 
 
@@ -100,7 +102,7 @@ class ReadUnit(nn.Module):
         self.activation = nn.ELU()
         self.module_dim = module_dim
 
-    def forward(self, memory, know, control, objects=None, memDpMask=None):
+    def forward(self, memory, know, control, memDpMask=None):
         """
         Args:
             memory: the cell's memory state
@@ -191,7 +193,7 @@ class MACUnit(nn.Module):
 
         return initial_control, initial_memory, memDpMask
 
-    def forward(self, context, question, knowledge, question_lengths, objects=None):
+    def forward(self, context, question, knowledge, question_lengths):
         batch_size = question.size(0)
         control, memory, memDpMask = self.zero_state(batch_size, question)
 
@@ -199,7 +201,7 @@ class MACUnit(nn.Module):
             # control unit
             control = self.control(question, context, question_lengths, i)
             # read unit
-            info = self.read(memory, knowledge, control, objects, memDpMask)
+            info = self.read(memory, knowledge, control, memDpMask)
             # write unit
             memory = self.write(memory, info)
 
@@ -243,10 +245,6 @@ class InputUnit(nn.Module):
             '14x14': self.stem(fmaps[2]).view(b_size, self.dim, -1).permute(0,2,1),
             '56x56': self.stem(fmaps[0]).view(b_size, self.dim, 56, 56),
             }
-
-
-        # img = img.view(b_size, self.dim, -1)
-        # img = img.permute(0,2,1)
 
         # get question and contextual word embeddings
         embed = self.encoder_embed(question)
@@ -308,7 +306,7 @@ class MACNetwork(nn.Module):
 
         self.recv_objects = recv_objects
         if recv_objects:
-            resnet = resnet34(pretrained=True)
+            self.avg_pool = nn.AdaptiveAvgPool2d(1)
             self.obj_linear = nn.Linear(512, 512)
             
 
@@ -317,15 +315,24 @@ class MACNetwork(nn.Module):
         question_embedding, contextual_words, fmaps = self.input_unit(image, question, question_len)
 
         if self.recv_objects:
-            bsz, objs_len = bboxes.size()[:2]
-            objects = self.obj_layers(objects.view(bsz * objs_len, 6, 149, 224))
-            objects = self.obj_linear(objects.squeeze(-1).squeeze(-1))
-            objects = objects.view(bsz, objs_len, -1)
+            bsz = image.size(0)
+            objects = []
+            for i, img_bboxes in enumerate(bboxes):
+                img_objs = torch.stack([
+                    self.avg_pool(fmaps['56x56'][i, :, box[1]:box[1] +
+                                   box[3], box[0]:box[0]+box[2]]).view(512) for box in img_bboxes
+                ])
+                objects.append(img_objs)
+                # objects.append(self.obj_linear(img_objs))
 
-            img = objects
+            objects = pad_sequence(objects, batch_first=True)
+            
+            know = objects
+        else:
+            know = fmaps['14x14']
 
         # apply MacCell
-        memory = self.mac(contextual_words, question_embedding, fmaps['14x14'], question_len, bboxes)
+        memory = self.mac(contextual_words, question_embedding, know, question_len)
 
         # get classification
         out = self.output_unit(question_embedding, memory)
