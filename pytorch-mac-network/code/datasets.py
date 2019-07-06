@@ -45,6 +45,8 @@ class ClevrDataset(data.Dataset):
         self.incl_objs = incl_objs
         if use_sample:
             split = 'train'
+            scenes_json = scenes_json.replace('val', 'train')
+            
 
         print('Loading data')
         if use_sample:

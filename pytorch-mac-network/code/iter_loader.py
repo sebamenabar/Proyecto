@@ -53,10 +53,10 @@ if __name__ == "__main__":
     print('Using sample', use_sample)
 
     # load dataset
-    train_scenes_json = cfg.DATASET.TRAIN_SCENES_JSON
-    dataset = ClevrDataset(data_dir=data_dir, img_dir=img_dir, scenes_json=train_scenes_json, split="train", use_sample=use_sample)
-    dataloader = DataLoader(dataset=dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
-                                num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
+    # rain_scenes_json = cfg.DATASET.TRAIN_SCENES_JSON
+    # dataset = ClevrDataset(data_dir=data_dir, img_dir=img_dir, scenes_json=train_scenes_json, split="train", use_sample=use_sample)
+    # dataloader = DataLoader(dataset=dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
+    #                            num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
 
     val_scenes_json = cfg.DATASET.VAL_SCENES_JSON
     dataset_val = ClevrDataset(data_dir=data_dir, img_dir=img_dir,
@@ -64,14 +64,14 @@ if __name__ == "__main__":
     dataloader_val = DataLoader(dataset=dataset_val, batch_size=200, drop_last=True,
                                     shuffle=False, num_workers=cfg.WORKERS, collate_fn=collate_fn)
 
-    print("Size of train dataset: {}".format(len(dataset)))
+    # print("Size of train dataset: {}".format(len(dataset)))
     print("\n")
     print("Size of val dataset: {}".format(len(dataset_val)))
 
+    for _ in tqdm(dataloader_val):
+        pass
 
     for _ in tqdm(dataloader):
         pass
 
-    for _ in tqdm(dataloader_val):
-        pass
 
