@@ -40,10 +40,14 @@ def norm_bbox(bbox, initial_size=initial_size, final_size=final_size):
     return bbox.astype(np.int)
 
 class ClevrDataset(data.Dataset):
-    def __init__(self, data_dir, img_dir, scenes_json, split='train'):
+    def __init__(self, data_dir, img_dir, scenes_json, split='train', prepare_scenes=True, use_sample=False):
 
         print('Loading data')
-        with open(os.path.join(data_dir, '{}.pkl'.format(split)), 'rb') as f:
+        if use_sample:
+            data_file = os.path.join(data_dir, 'sample_{}.pkl'.format(split))
+        else:
+            data_file = os.path.join(data_dir, '{}.pkl'.format(split))
+        with open(data_file, 'rb') as f:
             self.data = pickle.load(f)
         
         print('Loading features')
@@ -63,7 +67,8 @@ class ClevrDataset(data.Dataset):
         self.img_dir = img_dir
         self.split = split
 
-        self.prepare_scenes()
+        if prepare_scenes:
+            self.prepare_scenes()
 
     def prepare_scenes(self):
         print('Preparing scenes')

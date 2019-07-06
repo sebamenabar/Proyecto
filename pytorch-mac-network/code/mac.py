@@ -300,7 +300,6 @@ class MACNetwork(nn.Module):
             resnet = resnet34(pretrained=True)
             self.obj_linear = nn.Linear(512, 512)
             
-            
             self.obj_layers = list(resnet.children())
             self.obj_layers.pop()
             self.obj_layers.pop(0)

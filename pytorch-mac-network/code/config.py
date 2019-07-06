@@ -37,6 +37,7 @@ __C.DATASET = dict(__C.DATASET)
 __C.DATASET.TRAIN_SCENES_JSON = ''
 __C.DATASET.VAL_SCENES_JSON = ''
 __C.DATASET.IMG_DIR = ''
+__C.DATASET.USE_SAMPLE = False
 
 def _merge_a_into_b(a, b):
     """Merge config dictionary a into config dictionary b, clobbering the

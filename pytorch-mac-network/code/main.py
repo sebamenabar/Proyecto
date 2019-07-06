@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument('--gpu',  dest='gpu_id', type=str, default='0')
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--manualSeed', type=int, help='manual seed')
+    parser.add_argument('--use_sample', type=bool, default=False)
     args = parser.parse_args()
     return args
 
@@ -52,6 +53,8 @@ if __name__ == "__main__":
         cfg.DATA_DIR = args.data_dir
     if args.manualSeed is None:
         args.manualSeed = random.randint(1, 10000)
+    if args.use_sample:
+        cfg.DATASET.USE_SAMPLE = args.use_sample
     random.seed(args.manualSeed)
     torch.manual_seed(args.manualSeed)
     if cfg.CUDA:

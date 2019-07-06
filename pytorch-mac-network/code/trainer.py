@@ -68,15 +68,17 @@ class Trainer():
 
 
         img_dir = cfg.DATASET.IMG_DIR
+        use_sample = cfg.DATASET.USE_SAMPLE
 
         # load dataset
         train_scenes_json = cfg.DATASET.TRAIN_SCENES_JSON
-        self.dataset = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=train_scenes_json, split="train")
+        self.dataset = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=train_scenes_json, split="train", use_sample=use_sample)
         self.dataloader = DataLoader(dataset=self.dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                        num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
 
         val_scenes_json = cfg.DATASET.VAL_SCENES_JSON
-        self.dataset_val = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=val_scenes_json, split="val")
+        self.dataset_val = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir,
+                                        scenes_json=val_scenes_json, split="val", use_sample=use_sample)
         self.dataloader_val = DataLoader(dataset=self.dataset_val, batch_size=200, drop_last=True,
                                          shuffle=False, num_workers=cfg.WORKERS, collate_fn=collate_fn)
 
