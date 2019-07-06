@@ -13,6 +13,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 from torch.nn import functional as F
 import torchvision.utils as vutils
+from torchvision.models.detection.backbone_utils import BackboneWithFPN
 
 
 def save_model(model, optim, iter, model_dir, max_to_keep=None, model_name=""):

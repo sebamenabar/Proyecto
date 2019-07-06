@@ -13,7 +13,7 @@ TRAIN:
     PATIENCE: 5
     CLIP_GRADS: True
     MAX_STEPS: 4
-    RECV_OBJECTS: True
+    RECV_OBJECTS: False
 
 DATASET:
     DATA_DIR: '/Users/sebamenabar/Documents/datasets/CLEVR_v1.0/data'

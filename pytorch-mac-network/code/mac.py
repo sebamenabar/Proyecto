@@ -221,8 +221,8 @@ class InputUnit(nn.Module):
 
         self.fpn = resnet_fpn_backbone('resnet101', pretrained=True)
         # No actualizar pesos de resnet
-        for param in self.fpn.body.parameters():
-            param.requires_grad = False
+        # for param in self.fpn.body.parameters():
+            # param.requires_grad = False
         self.stem = nn.Sequential(nn.Dropout(p=0.18),
                                   nn.Conv2d(256, module_dim, 3, 1, 1),
                                   nn.ELU(),
@@ -241,14 +241,19 @@ class InputUnit(nn.Module):
 
     def forward(self, image, question, question_len):
         b_size = question.size(0)
-
+        
+        print('image', image.size())
+        print(image)
         # get image features
         fmaps = self.fpn(image)
+
+        print('input unit', fmaps)
 
         fmaps = {
             '14x14': self.stem(fmaps[2]).view(b_size, self.dim, -1).permute(0,2,1),
             '56x56': self.stem(fmaps[0]).view(b_size, self.dim, 56, 56),
             }
+
 
         # img = img.view(b_size, self.dim, -1)
         # img = img.permute(0,2,1)
@@ -306,17 +311,16 @@ class MACNetwork(nn.Module):
         nn.init.uniform_(self.input_unit.encoder_embed.weight, -1.0, 1.0)
         nn.init.normal_(self.mac.initial_memory)
 
+        self.input_unit.fpn = resnet_fpn_backbone('resnet101', pretrained=True)
+        # No actualizar pesos de resnet
+        for param in self.input_unit.fpn.body.parameters():
+            param.requires_grad = False
+
         self.recv_objects = recv_objects
         if recv_objects:
             resnet = resnet34(pretrained=True)
             self.obj_linear = nn.Linear(512, 512)
             
-            self.obj_layers = list(resnet.children())
-            self.obj_layers.pop()
-            self.obj_layers.pop(0)
-            self.obj_layers.insert(0, nn.Conv2d(6, 64, kernel_size=(7, 7),
-                                    stride=(2, 2), padding=(3, 3), bias=False))
-            self.obj_layers = nn.Sequential(*self.obj_layers)
 
     def forward(self, image, question, question_len, bboxes=None):
         # get image, word, and sentence embeddings

@@ -152,7 +152,7 @@ class Trainer():
         self.labeled_data = iter(self.dataloader)
         self.set_mode("train")
 
-        dataset = tqdm(self.labeled_data)
+        dataset = tqdm(self.labeled_data, ncols=10)
 
         for data in dataset:
             ######################################################
@@ -266,7 +266,7 @@ class Trainer():
         all_accuracies = []
         all_accuracies_ema = []
 
-        for _iteration in range(total_iters):
+        for _iteration in tqdm(range(total_iters), ncols=10):
             try:
                 data = next(eval_data)
             except StopIteration:

@@ -30,7 +30,7 @@ _transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-def norm_bbox(bbox, initial_size=initial_size, final_size=final_size):
+def norm_bbox(bbox, initial_size=initial_size, final_size=(56, 56)):
     bbox = bbox.copy()
     bbox[:, 0] = (bbox[:, 0] / initial_size[1]) * final_size[1]
     bbox[:, 1] = (bbox[:, 1] / initial_size[0]) * final_size[0]
