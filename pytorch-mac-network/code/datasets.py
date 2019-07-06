@@ -40,7 +40,11 @@ def norm_bbox(bbox, initial_size=initial_size, final_size=final_size):
     return bbox.astype(np.int)
 
 class ClevrDataset(data.Dataset):
-    def __init__(self, data_dir, img_dir, scenes_json, split='train', prepare_scenes=True, use_sample=False):
+    def __init__(self, data_dir, img_dir, scenes_json, split='train', prepare_scenes=True, use_sample=False, incl_objs=True):
+
+        self.incl_objs = incl_objs
+        if use_sample:
+            split = 'train'
 
         print('Loading data')
         if use_sample:
@@ -106,7 +110,6 @@ def collate_fn(batch):
     max_objects_len = max(map(lambda x: len(x[5]), batch))
 
     questions = np.zeros((batch_size, max_len), dtype=np.int64)
-    # objects =
 
     sort_by_len = sorted(batch, key=lambda x: len(x[1]), reverse=True)
 
@@ -120,14 +123,15 @@ def collate_fn(batch):
         boxes.append(box)
         raw_images.append(raw_image)
 
-    raw_images = torch.stack(raw_images)
-    raw_images = raw_images.unsqueeze(1)
-    raw_images = raw_images.repeat(1, max_objects_len, 2, 1, 1)
-    raw_images[:, :, 3:, :, :] = 0
+    if getattr(collate_fn, 'incl_objs', False):
+        raw_images = torch.stack(raw_images)
+        raw_images = raw_images.unsqueeze(1)
+        raw_images = raw_images.repeat(1, max_objects_len, 2, 1, 1)
+        raw_images[:, :, 3:, :, :] = 0
 
-    for img_number, image_boxes in enumerate(boxes):
-        for obj_number, box in enumerate(image_boxes):
-            raw_images[img_number, obj_number, 3:, box[1]:box[1]+box[3], box[0]:box[0]+box[2]] = raw_images[img_number, obj_number, :3, box[1]:box[1]+box[3], box[0]:box[0]+box[2]]
+        for img_number, image_boxes in enumerate(boxes):
+            for obj_number, box in enumerate(image_boxes):
+                raw_images[img_number, obj_number, 3:, box[1]:box[1]+box[3], box[0]:box[0]+box[2]] = raw_images[img_number, obj_number, :3, box[1]:box[1]+box[3], box[0]:box[0]+box[2]]
 
 
     return {'image': torch.stack(images), 'question': torch.from_numpy(questions),

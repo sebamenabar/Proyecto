@@ -69,6 +69,11 @@ class Trainer():
 
         img_dir = cfg.DATASET.IMG_DIR
         use_sample = cfg.DATASET.USE_SAMPLE
+        incl_objs = cfg.TRAIN.RECV_OBJECTS
+
+        if incl_objs:
+            print('Including objects')
+            collate_fn.incl_objs = True
 
         # load dataset
         train_scenes_json = cfg.DATASET.TRAIN_SCENES_JSON
