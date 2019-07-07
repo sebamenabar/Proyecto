@@ -300,7 +300,7 @@ class MACNetwork(nn.Module):
         nn.init.uniform_(self.input_unit.encoder_embed.weight, -1.0, 1.0)
         nn.init.normal_(self.mac.initial_memory)
 
-        self.input_unit.fpn = resnet_fpn_backbone('resnet101', pretrained=True)
+        self.input_unit.fpn = resnet_fpn_backbone('resnet50', pretrained=True)
         # No actualizar pesos de resnet
         for param in self.input_unit.fpn.body.parameters():
             param.requires_grad = False
