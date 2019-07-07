@@ -9,12 +9,15 @@ import os
 import json
 import h5py
 import numpy as np
-from scipy.misc import imread, imresize
+# from scipy.misc import imread, imresize
+from PIL import Image
 
 import torch
 import torchvision
 from torchvision.models._utils import IntermediateLayerGetter
+from torchvision.ops.misc import FrozenBatchNorm2d
 
+from collections import OrderedDict
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_image_dir', required=True)
@@ -34,20 +37,21 @@ def build_model(args):
     raise ValueError('Invalid model "%s"' % args.model)
   if not 'resnet' in args.model:
     raise ValueError('Feature extraction only supports ResNets')
-  cnn = getattr(torchvision.models, args.model)(pretrained=True)
-  layers = [
-      cnn.conv1,
-      cnn.bn1,
-      cnn.relu,
-      cnn.maxpool,
-  ]
-  for i in range(args.model_stage):
-    name = 'layer%d' % (i + 1)
-    layers.append(getattr(cnn, name))
-  model = torch.nn.Sequential(*layers)
+  cnn = getattr(torchvision.models, args.model)(pretrained=True, norm_layer=FrozenBatchNorm2d)
+  layers = OrderedDict([
+    ('conv1', cnn.conv1),
+    ('bn1', cnn.bn1),
+    ('relu', cnn.relu),
+    ('maxpool', cnn.maxpool),
+  ])
+  for i in range(4):
+      name = 'layer%d' % (i + 1)
+      layers[name] = getattr(cnn, name)
+  model = torch.nn.Sequential(layers)
   model.cuda()
   model.eval()
 
+  # print(model)
 
   return_layers = {'layer1': 0, 'layer2': 1, 'layer3': 2, 'layer4': 3}
 
@@ -68,7 +72,7 @@ def run_batch(cur_batch, model):
 
   with torch.no_grad():
     feats = model(image_batch)
-    feats = feats.data.cpu().clone().numpy()
+    # feats = feats.data.cpu().clone().numpy()
 
   return feats
 
@@ -101,8 +105,11 @@ def main(args):
     i0 = 0
     cur_batch = []
     for i, (path, idx) in enumerate(input_paths):
-      img = imread(path, mode='RGB')
-      img = imresize(img, img_size, interp='bicubic')
+      # img = imread(path, mode='RGB')
+      img = Image.open(path).convert('RGB')
+      # img = imresize(img, img_size, interp='bicubic')
+      img = img.resize(img_size, resample=Image.BICUBIC)
+      img = np.array(img)
       img = img.transpose(2, 0, 1)[None]
       cur_batch.append(img)
       if len(cur_batch) == args.batch_size:
@@ -110,30 +117,30 @@ def main(args):
         if feat_dset56 is None:
           N = len(input_paths)
           # _, C, H, W = feats.shape
-          feat_dset56 = f.create_dataset('features', (N, 256, 56, 56),
-                                       dtype=np.float32)
-          feat_dset28 = f.create_dataset('features', (N, 512, 28, 28),
-                                       dtype=np.float32)
-          feat_dset14 = f.create_dataset('features', (N, 1024, 14, 14),
-                                       dtype=np.float32)
-          feat_dset7 = f.create_dataset('features', (N, 2048, 7, 7),
-                                       dtype=np.float32)
+          feat_dset56 = f.create_dataset('features56', (N, 256, 56, 56),
+                                       dtype=np.float32, compression="gzip", compression_opts=9)
+          feat_dset28 = f.create_dataset('features28', (N, 512, 28, 28),
+                                       dtype=np.float32, compression="gzip", compression_opts=9)
+          feat_dset14 = f.create_dataset('features14', (N, 1024, 14, 14),
+                                       dtype=np.float32, compression="gzip", compression_opts=9)
+          feat_dset7 = f.create_dataset('features7', (N, 2048, 7, 7),
+                                       dtype=np.float32, compression="gzip", compression_opts=9)
 
         i1 = i0 + len(cur_batch)
-        feat_dset56[i0:i1] = feats[0]
-        feat_dset28[i0:i1] = feats[1]
-        feat_dset14[i0:i1] = feats[2]
-        feat_dset7[i0:i1] = feats[3]
+        feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
+        feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
+        feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
+        feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
         i0 = i1
         print('Processed %d / %d images' % (i1, len(input_paths)))
         cur_batch = []
     if len(cur_batch) > 0:
       feats = run_batch(cur_batch, model)
       i1 = i0 + len(cur_batch)
-      feat_dset56[i0:i1] = feats[0]
-      feat_dset28[i0:i1] = feats[1]
-      feat_dset14[i0:i1] = feats[2]
-      feat_dset7[i0:i1] = feats[3]
+      feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
+      feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
+      feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
+      feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
     print('Processed %d / %d images' % (i1, len(input_paths)))
 
 
