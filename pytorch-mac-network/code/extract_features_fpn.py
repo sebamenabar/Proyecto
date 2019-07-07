@@ -41,14 +41,13 @@ class ImageFilelist(data.Dataset):
         self.loader = loader
 
     def __getitem__(self, index):
-		print(index)
+      impath = self.flist[index]
+      img = self.loader(impath[0])
+      if self.transform is not None:
+        img = self.transform(img)
 
-        impath = self.flist[index]
-        img = self.loader(impath)
-        if self.transform is not None:
-          img = self.transform(img)
-
-        return img
+      # print(index)
+      return img
 
     def __len__(self):
         return len(self.flist)
@@ -93,6 +92,7 @@ def build_model(args):
   model = IntermediateLayerGetter(model, return_layers=return_layers)
 
   model.cuda()
+  model.eval()
   return model
 
 
@@ -139,35 +139,33 @@ def main(args):
   ])
 
   dataset = ImageFilelist(input_paths, transform=transform)
-  loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=2)
+  loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=2, pin_memory=True)
 
   with h5py.File(args.output_h5_file, 'w') as f:
 
-	N = len(input_paths)
-	# _, C, H, W = feats.shape
-	feat_dset56 = f.create_dataset('features56', (N, 256, 56, 56),
-									dtype=np.float32, compression="gzip", compression_opts=9)
-	feat_dset28 = f.create_dataset('features28', (N, 512, 28, 28),
-									dtype=np.float32, compression="gzip", compression_opts=9)
-	feat_dset14 = f.create_dataset('features14', (N, 1024, 14, 14),
-									dtype=np.float32, compression="gzip", compression_opts=9)
-	feat_dset7 = f.create_dataset('features7', (N, 2048, 7, 7),
-									dtype=np.float32, compression="gzip", compression_opts=9)
-
+    N = len(input_paths)
+    # _, C, H, W = feats.shape
+    feat_dset56 = f.create_dataset('features56', (N, 256, 56, 56),
+                    dtype=np.float32, compression="gzip", compression_opts=1)
+    # feat_dset28 = f.create_dataset('features28', (N, 512, 28, 28),
+    #                dtype=np.float32, compression="gzip", compression_opts=1)
+    feat_dset14 = f.create_dataset('features14', (N, 1024, 14, 14),
+                    dtype=np.float32, compression="gzip", compression_opts=1)
+    feat_dset7 = f.create_dataset('features7', (N, 2048, 7, 7),
+                    dtype=np.float32, compression="gzip", compression_opts=1)
 
     i0 = 0
-	pbar = tqdm(loader)
+    pbar = tqdm(loader)
     for cur_batch in pbar:
-		feats = run_batch(cur_batch, model)
-		i1 = i0 + len(cur_batch)
-
-		pbar.write(i0, i1)
-
-        feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
-        feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
-        feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
-        feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
-        i0 = i1
+      cur_batch = cur_batch.cuda()
+      feats = run_batch(cur_batch, model)
+      i1 = i0 + len(cur_batch)
+      # print(i0, i1)
+      feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
+      # feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
+      feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
+      feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
+      i0 = i1
 
     # cur_batch = []
     # for i, (path, idx) in enumerate(input_paths):
