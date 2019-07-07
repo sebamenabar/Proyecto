@@ -427,6 +427,15 @@ class Trainer():
 
             scores = self.model(image, question, question_len, objects)
             loss = self.loss_fn(scores, answer)
+
+            if cfg.TRAIN.SUPERVISE_ATTN:
+                samples_with_attn = [(i, attn[-1]) for i, attn in enumerate(data['attention']) if attn is not None]
+                selection = self.model.mac.read.attn_result.squeeze(-1)[[s[0] for s in samples_with_attn]]
+                ids = torch.LongTensor([s[1] for s in samples_with_attn])
+                attn_supervision = -selection.gather(1, ids.view(-1, 1)).sum()
+
+                loss = loss + attn_supervision
+
             loss.backward()
 
             if self.cfg.TRAIN.CLIP_GRADS:
