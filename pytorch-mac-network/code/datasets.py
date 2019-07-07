@@ -94,6 +94,14 @@ class ClevrDataset(data.Dataset):
             scene['boxes'] = norm_bbox(boxes)
         print()
 
+    def _getmetainfo(self, index):
+        data = self.data[index]
+        imgfile = data[0]
+        return {
+            'data': data,
+            'scene': self.scenes[self.imgfile2idx[imgfile]],
+        }
+
     def __getitem__(self, index):
         family = None
         if self.split == 'mini':

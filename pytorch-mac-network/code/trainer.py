@@ -15,9 +15,10 @@ from torch.autograd import Variable
 import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 
-from utils import mkdir_p, save_model, load_vocab
+from utils import mkdir_p, save_model, load_vocab, build_curriculum
 from datasets import ClevrDataset, collate_fn
 import mac
+
 
 
 class Logger(object):
@@ -151,10 +152,15 @@ class Trainer():
         avg_loss = 0
         train_accuracy = 0
 
-        self.labeled_data = iter(self.dataloader)
+        # self.labeled_data = iter(self.dataloader)
         self.set_mode("train")
 
-        dataset = tqdm(self.labeled_data, ncols=10)
+        labeled_data = build_curriculum(self.dataset, epoch + 1)
+        
+        labeled_data_loader = DataLoader(dataset=labeled_data, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
+                                     num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
+
+        dataset = tqdm(self.labeled_data_loader, ncols=10)
 
         for data in dataset:
             ######################################################
