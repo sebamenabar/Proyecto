@@ -4,6 +4,7 @@ import torch.nn.init as init
 from torch.autograd import Variable
 from torchvision.models import resnet34
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
+from torchvision.ops import RoIAlign
 
 from torch.nn.utils.rnn import pad_sequence
 
@@ -308,6 +309,7 @@ class MACNetwork(nn.Module):
         if recv_objects:
             self.avg_pool = nn.AdaptiveAvgPool2d(1)
             self.obj_linear = nn.Linear(512, 512)
+            self.roi_align = RoIAlign((1, 1), 1.0, -1)
             
 
     def forward(self, image, question, question_len, bboxes=None):
@@ -315,18 +317,17 @@ class MACNetwork(nn.Module):
         question_embedding, contextual_words, fmaps = self.input_unit(image, question, question_len)
 
         if self.recv_objects:
-            bsz = image.size(0)
-            objects = []
-            for i, img_bboxes in enumerate(bboxes):
-                img_objs = torch.stack([
-                    self.avg_pool(fmaps['56x56'][i, :, box[1]:box[1] +
-                                   box[3], box[0]:box[0]+box[2]]).view(512) for box in img_bboxes
-                ])
-                objects.append(img_objs)
-                # objects.append(self.obj_linear(img_objs))
+            bboxes_len = [len(bbox) for bbox in bboxes]
+            rois = self.roi_align(fmaps['56x56'], [box.to(
+                dtype=fmaps['56x56'].dtype, device=fmaps['56x56'].device) for box in bboxes]).squeeze(-1).squeeze(-1)
 
-            objects = pad_sequence(objects, batch_first=True)
-            
+            ts = []
+            j = 0
+            for i in bboxes_len:
+                ts.append(rois[j:j+i])
+
+            objects = pad_sequence(ts, batch_first=True)
+
             know = objects
         else:
             know = fmaps['14x14']

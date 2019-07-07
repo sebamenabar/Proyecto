@@ -32,10 +32,10 @@ _transform = transforms.Compose([
 
 def norm_bbox(bbox, initial_size=initial_size, final_size=(56, 56)):
     bbox = bbox.copy()
-    bbox[:, 0] = (bbox[:, 0] / initial_size[1]) * final_size[1]
-    bbox[:, 1] = (bbox[:, 1] / initial_size[0]) * final_size[0]
-    bbox[:, 2] = (bbox[:, 2] / initial_size[1]) * final_size[1]
-    bbox[:, 3] = (bbox[:, 3] / initial_size[0]) * final_size[0]
+    bbox[:, 0] = np.floor((bbox[:, 0] / initial_size[1]) * final_size[1])
+    bbox[:, 1] = np.floor((bbox[:, 1] / initial_size[0]) * final_size[0])
+    bbox[:, 2] = np.ceil((bbox[:, 2] / initial_size[1]) * final_size[1])
+    bbox[:, 3] = np.ceil((bbox[:, 3] / initial_size[0]) * final_size[0])
 
     return bbox.astype(np.int)
 
