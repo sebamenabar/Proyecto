@@ -29,6 +29,7 @@ __C.TRAIN.PATIENCE = 5
 __C.TRAIN.VAR_DROPOUT = False
 __C.TRAIN.RECV_OBJECTS = False
 __C.TRAIN.MINI_EPOCHS = 1
+__C.TRAIN.CURRICULUM = False
 __C.TRAIN = dict(__C.TRAIN)
 
 # Dataset options

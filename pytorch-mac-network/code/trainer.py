@@ -157,8 +157,11 @@ class Trainer():
         # self.labeled_data = iter(self.dataloader)
         self.set_mode("train")
 
-        labeled_data = build_curriculum(self.dataset, epoch + 1)
-        
+        if cfg.TRAIN.CURRICULUM:
+            labeled_data = build_curriculum(self.dataset, epoch + 1)
+        else:
+            labeled_data = self.dataset
+
         labeled_data_loader = DataLoader(dataset=labeled_data, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                      num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
 
