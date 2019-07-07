@@ -19,6 +19,8 @@ from utils import mkdir_p, save_model, load_vocab
 from datasets import ClevrDataset, collate_fn
 import mac
 
+import numpy as np
+
 
 class Logger(object):
     def __init__(self, logfile):
@@ -109,7 +111,7 @@ class Trainer():
         pprint.pprint(self.cfg)
         print("\n")
 
-        pprint.pprint("Size of dataset: {}".format(len(self.dataset)))
+        # pprint.pprint("Size of dataset: {}".format(len(self.dataset)))
         print("\n")
 
         print("Using MAC-Model:")
@@ -317,9 +319,9 @@ class Trainer():
     def train_mini(self):
         cfg = self.cfg
         dataset = ClevrDataset(
-            data_dir=__C.DATASET.MINI_DATA_DIR,
-            imr_dir=__C.DATASET.MINI_IMG_DIR,
-            scenes_json=__C.DATASET.MINI_SCENES_JSON,
+            data_dir=cfg.DATASET.MINI_DATA_DIR,
+            img_dir=cfg.DATASET.MINI_IMG_DIR,
+            scenes_json=cfg.DATASET.MINI_SCENES_JSON,
             split='mini'
             )
 
@@ -344,16 +346,16 @@ class Trainer():
         )
 
         print("Start Training")
-        for epoch in range(self.mini_epochs):
+        for epoch in range(cfg.TRAIN.MINI_EPOCHS):
             dict = self.train_epoch_mini(epoch, train_dataloader)
             self.reduce_lr()
-            self.log_results(epoch, dict)
+            # self.log_results(epoch, dict)
 
             self.writer.add_scalar("avg_loss", dict["avg_loss"], epoch + 1)
             self.writer.add_scalar("train_accuracy", dict["train_accuracy"], epoch + 1)
 
             val_accuracy, val_accuracy_ema = self.calc_accuracy_mini(
-                val_dataloader, mode="validation", max_samples=None)
+                val_dataloader, val_dataset, mode="validation", max_samples=None)
             self.writer.add_scalar("val_accuracy_ema", val_accuracy_ema, epoch + 1)
             self.writer.add_scalar("val_accuracy", val_accuracy, epoch + 1)
 
@@ -450,15 +452,15 @@ class Trainer():
         }
         return dict
 
-    def calc_accuracy_mini(self, dataloader, mode="train", max_samples=None):
+    def calc_accuracy_mini(self, dataloader, dataset, mode="train", max_samples=None):
             self.set_mode("validation")
 
             if mode == "train":
                 eval_data = iter(dataloader)
                 num_imgs = len(dataset)
             elif mode == "validation":
-                eval_data = iter(dataloader_val)
-                num_imgs = len(dataset_val)
+                eval_data = iter(dataloader)
+                num_imgs = len(dataset)
 
             batch_size = 200
             total_iters = num_imgs // batch_size
