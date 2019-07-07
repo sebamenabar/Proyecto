@@ -14,12 +14,14 @@ TRAIN:
     CLIP_GRADS: True
     MAX_STEPS: 4
     RECV_OBJECTS: True
+    MINI_EPOCHS: 0
 
 DATASET:
     DATA_DIR: '/content/CLEVR_v1/data/'
     TRAIN_SCENES_JSON: '/content/CLEVR_v1/data/train_scenes.json'
     VAL_SCENES_JSON: '/content/CLEVR_v1/data/val_scenes.json'
     IMG_DIR: '/content/CLEVR_v1.0/images/'
+    RAW_IMAGE: TRUE
 
 
 

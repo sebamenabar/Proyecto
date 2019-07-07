@@ -325,6 +325,7 @@ class MACNetwork(nn.Module):
             j = 0
             for i in bboxes_len:
                 ts.append(rois[j:j+i])
+                j += i
 
             objects = pad_sequence(ts, batch_first=True)
 
