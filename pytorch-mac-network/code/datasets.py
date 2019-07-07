@@ -40,7 +40,8 @@ def norm_bbox(bbox, initial_size=initial_size, final_size=(56, 56)):
     return bbox.astype(np.int)
 
 class ClevrDataset(data.Dataset):
-    def __init__(self, data_dir, img_dir, scenes_json, split='train', prepare_scenes=True, use_sample=False, incl_objs=False):
+    def __init__(self, data_dir, img_dir, scenes_json, split='train',
+    prepare_scenes=True, use_sample=False, incl_objs=False, raw_image=False):
 
         self.incl_objs = incl_objs
         if use_sample:
@@ -56,7 +57,7 @@ class ClevrDataset(data.Dataset):
         with open(data_file, 'rb') as f:
             self.data = pickle.load(f)
         
-        if not incl_objs:
+        if not raw_image:
             print('Loading features')
             fp_data = os.path.join(data_dir, '{}_features.h5'.format(split))
             if os.path.exists(fp_data):
@@ -73,6 +74,7 @@ class ClevrDataset(data.Dataset):
         
         self.img_dir = img_dir
         self.split = split
+        self.raw_image = raw_image
 
         if prepare_scenes:
             self.prepare_scenes()
@@ -92,6 +94,14 @@ class ClevrDataset(data.Dataset):
             scene['boxes'] = norm_bbox(boxes)
         print()
 
+    def _getmetainfo(self, index):
+        data = self.data[index]
+        imgfile = data[0]
+        return {
+            'data': data,
+            'scene': self.scenes[self.imgfile2idx[imgfile]],
+        }
+
     def __getitem__(self, index):
         family = None
         if self.split == 'mini':
@@ -108,19 +118,20 @@ class ClevrDataset(data.Dataset):
 
         assert scene['image_filename'] == imgfile
 
-        if self.incl_objs:
+        if self.raw_image:
             img = None
+            raw_image = Image.open(img_path).convert('RGB')
+            raw_image = _transform(raw_image)
         else:
             id = int(imgfile.rsplit('_', 1)[1][:-4])
             img = torch.from_numpy(self.img[id])
+            raw_image = None
 
         if self.split == 'mini':
             img_path = os.path.join(self.img_dir, imgfile)
         else:
             img_path = os.path.join(self.img_dir, self.split, imgfile)
 
-        raw_image = Image.open(img_path).convert('RGB')
-        raw_image = _transform(raw_image)
 
         return img, question, len(question), answer, family, torch.from_numpy(scene['boxes']), raw_image, attention
 
@@ -151,8 +162,14 @@ def collate_fn(batch):
         raw_images.append(raw_image)
         attentions.append(attention)
 
-    return {'question': torch.from_numpy(questions),
+    if raw_image is not None:
+        raw_images = torch.stack(raw_images)
+
+    if image is not None:
+        images = torch.stack(images)
+
+    return {'image': images, 'question': torch.from_numpy(questions),
             'answer': torch.LongTensor(answers), 'question_length': lengths,
-            'raw_image': torch.stack(raw_images), 'boxes': boxes,
+            'raw_image': raw_images, 'boxes': boxes,
             'attention': attentions,
             }

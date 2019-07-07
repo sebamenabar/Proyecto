@@ -13,7 +13,8 @@ from torch.autograd import Variable
 import torch.nn as nn
 from torch.nn import functional as F
 import torchvision.utils as vutils
-from torchvision.models.detection.backbone_utils import BackboneWithFPN
+
+from torch.utils.data import Subset
 
 
 def save_model(model, optim, iter, model_dir, max_to_keep=None, model_name=""):
@@ -98,3 +99,28 @@ def generateVarDpMask(shape, keepProb):
 def applyVarDpMask(inp, mask, keepProb):
     ret = (torch.div(inp, torch.tensor(keepProb).cuda())) * mask
     return ret
+
+
+curriculum_strategy = [
+    # Epoca, cantidad objetos, largo programa
+    (0, 3, 4),
+    (1, 4, 8),
+    (2, 6, 15),
+    (3, 10, 25),
+    (1e9, None, None)
+]
+
+
+def build_curriculum(dataset, epoch):
+    subset_idxs = []
+    for ci, (min_epoch, max_scene_size, max_program_size) in enumerate(curriculum_strategy):
+        if min_epoch < epoch <= curriculum_strategy[ci + 1][0]:
+            print(
+                f'Curriculum with {max_scene_size} max scene size and {max_program_size} max program size')
+            for j in range(len(dataset)):
+                data_info = dataset._getmetainfo(j)
+                if (len(data_info['scene']['objects']) <= max_scene_size):
+                    subset_idxs.append(j)
+            break
+
+    return Subset(dataset, subset_idxs)
