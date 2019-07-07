@@ -120,17 +120,18 @@ class ClevrDataset(data.Dataset):
 
         if self.raw_image:
             img = None
+            raw_image = Image.open(img_path).convert('RGB')
+            raw_image = _transform(raw_image)
         else:
             id = int(imgfile.rsplit('_', 1)[1][:-4])
             img = torch.from_numpy(self.img[id])
+            raw_image = None
 
         if self.split == 'mini':
             img_path = os.path.join(self.img_dir, imgfile)
         else:
             img_path = os.path.join(self.img_dir, self.split, imgfile)
 
-        raw_image = Image.open(img_path).convert('RGB')
-        raw_image = _transform(raw_image)
 
         return img, question, len(question), answer, family, torch.from_numpy(scene['boxes']), raw_image, attention
 
@@ -161,8 +162,14 @@ def collate_fn(batch):
         raw_images.append(raw_image)
         attentions.append(attention)
 
-    return {'image': image, 'question': torch.from_numpy(questions),
+    if raw_image is not None:
+        raw_images = torch.stack(raw_images)
+
+    if image is not None:
+        images = torch.stack(images)
+
+    return {'image': images, 'question': torch.from_numpy(questions),
             'answer': torch.LongTensor(answers), 'question_length': lengths,
-            'raw_image': torch.stack(raw_images), 'boxes': boxes,
+            'raw_image': raw_images, 'boxes': boxes,
             'attention': attentions,
             }

@@ -13,7 +13,7 @@ TRAIN:
     PATIENCE: 5
     CLIP_GRADS: True
     MAX_STEPS: 4
-    MINI_EPOCHS: 2
+    MINI_EPOCHS: 5
 
 DATASET:
     DATA_DIR: '/content/CLEVR_v1/data/'
@@ -21,7 +21,7 @@ DATASET:
     VAL_SCENES_JSON: '/content/CLEVR_v1/data/val_scenes.json'
     IMG_DIR: '/content/CLEVR_v1.0/images/'
     MINI_DATA_DIR: '/content/CLEVR_v1/data/'
-    MINI_SCENES_JSON: '/content/CLEVR_mini/data/CLEVR_mini_coco_anns.json'
+    MINI_SCENES_JSON: '/content/CLEVR_mini/CLEVR_mini_coco_anns.json'
     MINI_IMG_DIR: '/content/CLEVR_mini/images/'
 
 

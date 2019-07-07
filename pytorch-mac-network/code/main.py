@@ -17,7 +17,7 @@ from config import cfg, cfg_from_file
 from utils import mkdir_p
 from trainer import Trainer
 
-from torch.nn import optim
+import torch.optim as optim
 
 def parse_args():
     parser = argparse.ArgumentParser()
