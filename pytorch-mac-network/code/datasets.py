@@ -118,6 +118,12 @@ class ClevrDataset(data.Dataset):
 
         assert scene['image_filename'] == imgfile
 
+
+        if self.split == 'mini':
+            img_path = os.path.join(self.img_dir, imgfile)
+        else:
+            img_path = os.path.join(self.img_dir, self.split, imgfile)
+
         if self.raw_image:
             img = None
             raw_image = Image.open(img_path).convert('RGB')
@@ -126,12 +132,6 @@ class ClevrDataset(data.Dataset):
             id = int(imgfile.rsplit('_', 1)[1][:-4])
             img = torch.from_numpy(self.img[id])
             raw_image = None
-
-        if self.split == 'mini':
-            img_path = os.path.join(self.img_dir, imgfile)
-        else:
-            img_path = os.path.join(self.img_dir, self.split, imgfile)
-
 
         return img, question, len(question), answer, family, torch.from_numpy(scene['boxes']), raw_image, attention
 
