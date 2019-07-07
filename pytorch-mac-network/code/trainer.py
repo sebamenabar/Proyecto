@@ -165,7 +165,7 @@ class Trainer():
         labeled_data_loader = DataLoader(dataset=labeled_data, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                      num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
 
-        dataset = tqdm(self.labeled_data_loader, ncols=10)
+        dataset = tqdm(labeled_data_loader, ncols=10)
 
         for data in dataset:
             ######################################################
