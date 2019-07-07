@@ -16,8 +16,43 @@ import torch
 import torchvision
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.ops.misc import FrozenBatchNorm2d
+from torchvision import transforms
 
 from collections import OrderedDict
+
+import torch.utils.data as data
+
+from PIL import Image
+import os
+import os.path
+
+from torch.utils.data import DataLoader
+from tqdm.autonotebook import tqdm
+
+
+def default_loader(path):
+	return Image.open(path).convert('RGB')
+
+
+class ImageFilelist(data.Dataset):
+    def __init__(self, flist, transform=None, loader=default_loader):
+        self.flist = flist
+        self.transform = transform
+        self.loader = loader
+
+    def __getitem__(self, index):
+		print(index)
+
+        impath = self.flist[index]
+        img = self.loader(impath)
+        if self.transform is not None:
+          img = self.transform(img)
+
+        return img
+
+    def __len__(self):
+        return len(self.flist)
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_image_dir', required=True)
@@ -62,16 +97,16 @@ def build_model(args):
 
 
 def run_batch(cur_batch, model):
-  mean = np.array([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1)
-  std = np.array([0.229, 0.224, 0.224]).reshape(1, 3, 1, 1)
+  # mean = np.array([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1)
+  # std = np.array([0.229, 0.224, 0.224]).reshape(1, 3, 1, 1)
 
-  image_batch = np.concatenate(cur_batch, 0).astype(np.float32)
-  image_batch = (image_batch / 255.0 - mean) / std
-  image_batch = torch.FloatTensor(image_batch).cuda()
-  image_batch = torch.autograd.Variable(image_batch, volatile=True)
+  # image_batch = np.concatenate(cur_batch, 0).astype(np.float32)
+  # image_batch = (image_batch / 255.0 - mean) / std
+  # image_batch = torch.FloatTensor(image_batch).cuda()
+  # image_batch = torch.autograd.Variable(image_batch, volatile=True)
 
   with torch.no_grad():
-    feats = model(image_batch)
+      feats = model(cur_batch)
     # feats = feats.data.cpu().clone().numpy()
 
   return feats
@@ -97,51 +132,82 @@ def main(args):
   model = build_model(args)
 
   img_size = (args.image_height, args.image_width)
-  with h5py.File(args.output_h5_file, 'w') as f:
-    feat_dset56 = None
-    feat_dset28 = None
-    feat_dset14 = None
-    feat_dset7 = None
-    i0 = 0
-    cur_batch = []
-    for i, (path, idx) in enumerate(input_paths):
-      # img = imread(path, mode='RGB')
-      img = Image.open(path).convert('RGB')
-      # img = imresize(img, img_size, interp='bicubic')
-      img = img.resize(img_size, resample=Image.BICUBIC)
-      img = np.array(img)
-      img = img.transpose(2, 0, 1)[None]
-      cur_batch.append(img)
-      if len(cur_batch) == args.batch_size:
-        feats = run_batch(cur_batch, model)
-        if feat_dset56 is None:
-          N = len(input_paths)
-          # _, C, H, W = feats.shape
-          feat_dset56 = f.create_dataset('features56', (N, 256, 56, 56),
-                                       dtype=np.float32, compression="gzip", compression_opts=9)
-          feat_dset28 = f.create_dataset('features28', (N, 512, 28, 28),
-                                       dtype=np.float32, compression="gzip", compression_opts=9)
-          feat_dset14 = f.create_dataset('features14', (N, 1024, 14, 14),
-                                       dtype=np.float32, compression="gzip", compression_opts=9)
-          feat_dset7 = f.create_dataset('features7', (N, 2048, 7, 7),
-                                       dtype=np.float32, compression="gzip", compression_opts=9)
+  transform = transforms.Compose([
+    transforms.Resize(img_size, interpolation=Image.BICUBIC),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.224]),
+  ])
 
-        i1 = i0 + len(cur_batch)
+  dataset = ImageFilelist(input_paths, transform=transform)
+  loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=2)
+
+  with h5py.File(args.output_h5_file, 'w') as f:
+
+	N = len(input_paths)
+	# _, C, H, W = feats.shape
+	feat_dset56 = f.create_dataset('features56', (N, 256, 56, 56),
+									dtype=np.float32, compression="gzip", compression_opts=9)
+	feat_dset28 = f.create_dataset('features28', (N, 512, 28, 28),
+									dtype=np.float32, compression="gzip", compression_opts=9)
+	feat_dset14 = f.create_dataset('features14', (N, 1024, 14, 14),
+									dtype=np.float32, compression="gzip", compression_opts=9)
+	feat_dset7 = f.create_dataset('features7', (N, 2048, 7, 7),
+									dtype=np.float32, compression="gzip", compression_opts=9)
+
+
+    i0 = 0
+	pbar = tqdm(loader)
+    for cur_batch in pbar:
+		feats = run_batch(cur_batch, model)
+		i1 = i0 + len(cur_batch)
+
+		pbar.write(i0, i1)
+
         feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
         feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
         feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
         feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
         i0 = i1
-        print('Processed %d / %d images' % (i1, len(input_paths)))
-        cur_batch = []
-    if len(cur_batch) > 0:
-      feats = run_batch(cur_batch, model)
-      i1 = i0 + len(cur_batch)
-      feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
-      feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
-      feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
-      feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
-    print('Processed %d / %d images' % (i1, len(input_paths)))
+
+    # cur_batch = []
+    # for i, (path, idx) in enumerate(input_paths):
+    #   # img = imread(path, mode='RGB')
+    #   img = Image.open(path).convert('RGB')
+    #   # img = imresize(img, img_size, interp='bicubic')
+    #   img = img.resize(img_size, resample=Image.BICUBIC)
+    #   img = np.array(img)
+    #   img = img.transpose(2, 0, 1)[None]
+    #   cur_batch.append(img)
+    #   if len(cur_batch) == args.batch_size:
+    #     feats = run_batch(cur_batch, model)
+    #     if feat_dset56 is None:
+    #       N = len(input_paths)
+    #       # _, C, H, W = feats.shape
+    #       feat_dset56 = f.create_dataset('features56', (N, 256, 56, 56),
+    #                                    dtype=np.float32, compression="gzip", compression_opts=9)
+    #       feat_dset28 = f.create_dataset('features28', (N, 512, 28, 28),
+    #                                    dtype=np.float32, compression="gzip", compression_opts=9)
+    #       feat_dset14 = f.create_dataset('features14', (N, 1024, 14, 14),
+    #                                    dtype=np.float32, compression="gzip", compression_opts=9)
+    #       feat_dset7 = f.create_dataset('features7', (N, 2048, 7, 7),
+    #                                    dtype=np.float32, compression="gzip", compression_opts=9)
+
+    #     i1 = i0 + len(cur_batch)
+    #     feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
+    #     feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
+    #     feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
+    #     feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
+    #     i0 = i1
+    #     print('Processed %d / %d images' % (i1, len(input_paths)))
+    #     cur_batch = []
+    # if len(cur_batch) > 0:
+    #   feats = run_batch(cur_batch, model)
+    #   i1 = i0 + len(cur_batch)
+    #   feat_dset56[i0:i1] = feats[0].cpu().clone().numpy()
+    #   feat_dset28[i0:i1] = feats[1].cpu().clone().numpy()
+    #   feat_dset14[i0:i1] = feats[2].cpu().clone().numpy()
+    #   feat_dset7[i0:i1] = feats[3].cpu().clone().numpy()
+    # print('Processed %d / %d images' % (i1, len(input_paths)))
 
 
 if __name__ == '__main__':
