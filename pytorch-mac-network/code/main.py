@@ -17,6 +17,7 @@ from config import cfg, cfg_from_file
 from utils import mkdir_p
 from trainer import Trainer
 
+from torch.nn import optim
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -63,6 +64,19 @@ if __name__ == "__main__":
     if cfg.TRAIN.FLAG:
         logdir = set_logdir(cfg.TRAIN.MAX_STEPS)
         trainer = Trainer(logdir, cfg)
+
+        if cfg.TRAIN.MINI_EPOCHS > 0:
+            trainer.train_mini()
+
+        trainer.lr = cfg.TRAIN.LEARNING_RATE
+        trainer.optimizer = optim.Adam(trainer.model.parameters(), lr=trainer.lr)
+
+        trainer.previous_best_acc = 0.0
+        trainer.previous_best_epoch = 0
+
+        trainer.total_epoch_loss = 0
+        trainer.prior_epoch_loss = 10
+
         trainer.train()
     else:
         raise NotImplementedError

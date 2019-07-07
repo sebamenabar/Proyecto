@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from utils import mkdir_p, save_model, load_vocab
 from datasets import ClevrDataset, collate_fn
@@ -66,10 +66,10 @@ class Trainer():
         torch.cuda.set_device(self.gpus[0])
         cudnn.benchmark = True
 
-
         img_dir = cfg.DATASET.IMG_DIR
         use_sample = cfg.DATASET.USE_SAMPLE
         incl_objs = cfg.TRAIN.RECV_OBJECTS
+        self.raw_image = cfg.DATASET.RAW_IMAGE
 
         if incl_objs:
             print('Including objects')
@@ -77,13 +77,15 @@ class Trainer():
 
         # load dataset
         train_scenes_json = cfg.DATASET.TRAIN_SCENES_JSON
-        self.dataset = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=train_scenes_json, split="train", use_sample=use_sample)
+        self.dataset = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir, scenes_json=train_scenes_json,
+            split="train", use_sample=use_sample, raw_image=self.raw_image)
         self.dataloader = DataLoader(dataset=self.dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                        num_workers=cfg.WORKERS, drop_last=True, collate_fn=collate_fn)
 
         val_scenes_json = cfg.DATASET.VAL_SCENES_JSON
         self.dataset_val = ClevrDataset(data_dir=self.data_dir, img_dir=img_dir,
-                                        scenes_json=val_scenes_json, split="val", use_sample=use_sample)
+                                        scenes_json=val_scenes_json, split="val", use_sample=use_sample,
+                                        raw_image=self.raw_image)
         self.dataloader_val = DataLoader(dataset=self.dataset_val, batch_size=200, drop_last=True,
                                          shuffle=False, num_workers=cfg.WORKERS, collate_fn=collate_fn)
 
@@ -158,7 +160,11 @@ class Trainer():
             ######################################################
             # (1) Prepare training data
             ######################################################
-            image, question, question_len, answer, objects = data['raw_image'], data['question'], data['question_length'], data['answer'], data['boxes']
+            question, question_len, answer, objects = data['question'], data['question_length'], data['answer'], data['boxes']
+            if self.raw_image:
+                image = data['raw_image']
+            else:
+                image = data['image']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
@@ -227,6 +233,8 @@ class Trainer():
         print("Finished Training")
         print("Highest validation accuracy: {} at epoch {}")
 
+
+
     def log_results(self, epoch, dict, max_eval_samples=None):
         epoch += 1
         self.writer.add_scalar("avg_loss", dict["avg_loss"], epoch)
@@ -274,7 +282,11 @@ class Trainer():
             if max_iter is not None and _iteration == max_iter:
                 break
 
-            image, question, question_len, answer, objects = data['raw_image'], data['question'], data['question_length'], data['answer'], data['boxes']
+            question, question_len, answer, objects = data['question'], data['question_length'], data['answer'], data['boxes']
+            if self.raw_image:
+                image = data['raw_image']
+            else:
+                image = data['image']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
@@ -300,3 +312,199 @@ class Trainer():
         accuracy = sum(all_accuracies) / float(len(all_accuracies))
 
         return accuracy, accuracy_ema
+
+
+    def train_mini(self):
+        cfg = self.cfg
+        dataset = ClevrDataset(
+            data_dir=__C.DATASET.MINI_DATA_DIR,
+            imr_dir=__C.DATASET.MINI_IMG_DIR,
+            scenes_json=__C.DATASET.MINI_SCENES_JSON,
+            split='mini'
+            )
+
+        train_dataset = Subset(dataset, np.arange(5000))
+        val_dataset = Subset(dataset, np.arange(5000, len(dataset)))
+
+        train_dataloader = DataLoader(
+            dataset=train_dataset,
+            batch_size=cfg.TRAIN.BATCH_SIZE,
+            shuffle=True,
+            num_workers=cfg.WORKERS,
+            drop_last=True,
+            collate_fn=collate_fn
+        )
+        val_dataloader = DataLoader(
+            dataset=val_dataset,
+            batch_size=200,
+            shuffle=False,
+            num_workers=cfg.WORKERS,
+            drop_last=True,
+            collate_fn=collate_fn
+        )
+
+        print("Start Training")
+        for epoch in range(self.mini_epochs):
+            dict = self.train_epoch_mini(epoch, train_dataloader)
+            self.reduce_lr()
+            self.log_results(epoch, dict)
+
+            self.writer.add_scalar("avg_loss", dict["avg_loss"], epoch + 1)
+            self.writer.add_scalar("train_accuracy", dict["train_accuracy"], epoch + 1)
+
+            val_accuracy, val_accuracy_ema = self.calc_accuracy_mini(
+                val_dataloader, mode="validation", max_samples=None)
+            self.writer.add_scalar("val_accuracy_ema", val_accuracy_ema, epoch + 1)
+            self.writer.add_scalar("val_accuracy", val_accuracy, epoch + 1)
+
+            print("Epoch: {}\tVal Acc: {},\tVal Acc EMA: {},\tAvg Loss: {},\tLR: {}".
+                format(epoch, val_accuracy, val_accuracy_ema, dict["avg_loss"], self.lr))
+
+            if val_accuracy > self.previous_best_acc:
+                self.previous_best_acc = val_accuracy
+                self.previous_best_epoch = epoch + 1
+
+            if (epoch + 1) % self.snapshot_interval == 0:
+                self.save_models(epoch + 1)
+
+            self.save_models(epoch)
+            if cfg.TRAIN.EALRY_STOPPING:
+                if epoch - cfg.TRAIN.PATIENCE == self.previous_best_epoch:
+                    break
+
+        self.writer.close()
+        print("Finished Training")
+        print("Highest validation accuracy: {} at epoch {}")
+
+    def train_epoch_mini(self, epoch, dataloader, ):
+        cfg = self.cfg
+        avg_loss = 0
+        train_accuracy = 0
+
+        # self.labeled_data = iter(self.dataloader)
+        self.set_mode("train")
+
+        dataset = tqdm(dataloader, ncols=10)
+
+        for data in dataset:
+            ######################################################
+            # (1) Prepare training data
+            ######################################################
+            question, question_len, answer, objects = data['question'], data['question_length'], data['answer'], data['boxes']
+            if self.raw_image:
+                image = data['raw_image']
+            else:
+                image = data['image']
+
+            answer = answer.long()
+            question = Variable(question)
+            answer = Variable(answer)
+
+            if cfg.CUDA:
+                image = image.cuda()
+                question = question.cuda()
+                answer = answer.cuda().squeeze()
+            else:
+                question = question
+                image = image
+                answer = answer.squeeze()
+
+            ############################
+            # (2) Train Model
+            ############################
+            self.optimizer.zero_grad()
+
+            scores = self.model(image, question, question_len, objects)
+            loss = self.loss_fn(scores, answer)
+            loss.backward()
+
+            if self.cfg.TRAIN.CLIP_GRADS:
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.cfg.TRAIN.CLIP)
+
+            self.optimizer.step()
+            self.weight_moving_average()
+
+            ############################
+            # (3) Log Progress
+            ############################
+            correct = scores.detach().argmax(1) == answer
+            accuracy = correct.sum().cpu().numpy() / answer.shape[0]
+
+            if avg_loss == 0:
+                avg_loss = loss.item()
+                train_accuracy = accuracy
+            else:
+                avg_loss = 0.99 * avg_loss + 0.01 * loss.item()
+                train_accuracy = 0.99 * train_accuracy + 0.01 * accuracy
+            self.total_epoch_loss += loss.item()
+
+            dataset.set_description(
+                'Epoch: {}; Avg Loss: {:.5f}; Avg Train Acc: {:.5f}'.format(
+                    epoch + 1, avg_loss, train_accuracy)
+            )
+
+        dict = {
+            "avg_loss": avg_loss,
+            "train_accuracy": train_accuracy
+        }
+        return dict
+
+    def calc_accuracy_mini(self, dataloader, mode="train", max_samples=None):
+            self.set_mode("validation")
+
+            if mode == "train":
+                eval_data = iter(dataloader)
+                num_imgs = len(dataset)
+            elif mode == "validation":
+                eval_data = iter(dataloader_val)
+                num_imgs = len(dataset_val)
+
+            batch_size = 200
+            total_iters = num_imgs // batch_size
+            if max_samples is not None:
+                max_iter = max_samples // batch_size
+            else:
+                max_iter = None
+
+            all_accuracies = []
+            all_accuracies_ema = []
+
+            for _iteration in tqdm(range(total_iters), ncols=10):
+                try:
+                    data = next(eval_data)
+                except StopIteration:
+                    break
+                if max_iter is not None and _iteration == max_iter:
+                    break
+
+                question, question_len, answer, objects = data['question'], data['question_length'], data['answer'], data['boxes']
+                if self.raw_image:
+                    image = data['raw_image']
+                else:
+                    image = data['image']
+                answer = answer.long()
+                question = Variable(question)
+                answer = Variable(answer)
+
+                if self.cfg.CUDA:
+                    image = image.cuda()
+                    question = question.cuda()
+                    answer = answer.cuda().squeeze()
+
+                with torch.no_grad():
+                    scores = self.model(image, question, question_len, objects)
+                    scores_ema = self.model_ema(image, question, question_len, objects)
+
+                correct_ema = scores_ema.detach().argmax(1) == answer
+                accuracy_ema = correct_ema.sum().cpu().numpy() / answer.shape[0]
+                all_accuracies_ema.append(accuracy_ema)
+
+                correct = scores.detach().argmax(1) == answer
+                accuracy = correct.sum().cpu().numpy() / answer.shape[0]
+                all_accuracies.append(accuracy)
+
+            accuracy_ema = sum(all_accuracies_ema) / float(len(all_accuracies_ema))
+            accuracy = sum(all_accuracies) / float(len(all_accuracies))
+
+            return accuracy, accuracy_ema

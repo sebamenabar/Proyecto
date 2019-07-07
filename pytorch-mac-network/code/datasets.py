@@ -40,7 +40,8 @@ def norm_bbox(bbox, initial_size=initial_size, final_size=(56, 56)):
     return bbox.astype(np.int)
 
 class ClevrDataset(data.Dataset):
-    def __init__(self, data_dir, img_dir, scenes_json, split='train', prepare_scenes=True, use_sample=False, incl_objs=False):
+    def __init__(self, data_dir, img_dir, scenes_json, split='train',
+    prepare_scenes=True, use_sample=False, incl_objs=False, raw_image=False):
 
         self.incl_objs = incl_objs
         if use_sample:
@@ -56,7 +57,7 @@ class ClevrDataset(data.Dataset):
         with open(data_file, 'rb') as f:
             self.data = pickle.load(f)
         
-        if not incl_objs:
+        if not raw_image:
             print('Loading features')
             fp_data = os.path.join(data_dir, '{}_features.h5'.format(split))
             if os.path.exists(fp_data):
@@ -73,6 +74,7 @@ class ClevrDataset(data.Dataset):
         
         self.img_dir = img_dir
         self.split = split
+        self.raw_image = raw_image
 
         if prepare_scenes:
             self.prepare_scenes()
@@ -108,7 +110,7 @@ class ClevrDataset(data.Dataset):
 
         assert scene['image_filename'] == imgfile
 
-        if self.incl_objs:
+        if self.raw_image:
             img = None
         else:
             id = int(imgfile.rsplit('_', 1)[1][:-4])
@@ -151,7 +153,7 @@ def collate_fn(batch):
         raw_images.append(raw_image)
         attentions.append(attention)
 
-    return {'question': torch.from_numpy(questions),
+    return {'image': image, 'question': torch.from_numpy(questions),
             'answer': torch.LongTensor(answers), 'question_length': lengths,
             'raw_image': torch.stack(raw_images), 'boxes': boxes,
             'attention': attentions,
