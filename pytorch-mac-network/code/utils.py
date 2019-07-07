@@ -104,9 +104,12 @@ def applyVarDpMask(inp, mask, keepProb):
 curriculum_strategy = [
     # Epoca, cantidad objetos, largo programa
     (0, 3, 4),
-    (1, 4, 8),
-    (2, 6, 15),
-    (3, 10, 25),
+    (1, 3, 4),
+    (2, 5, 8),
+    (3, 5, 8),
+    (4, 7, 15),
+    (5, 7, 15),
+    (6, 7, 15),
     (1e9, None, None)
 ]
 
