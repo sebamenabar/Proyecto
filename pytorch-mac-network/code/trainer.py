@@ -152,13 +152,13 @@ class Trainer():
         self.labeled_data = iter(self.dataloader)
         self.set_mode("train")
 
-        dataset = tqdm(self.labeled_data)
+        dataset = tqdm(self.labeled_data, ncols=10)
 
         for data in dataset:
             ######################################################
             # (1) Prepare training data
             ######################################################
-            image, question, question_len, answer, objects = data['image'], data['question'], data['question_length'], data['answer'], data['objects']
+            image, question, question_len, answer, objects = data['raw_image'], data['question'], data['question_length'], data['answer'], data['boxes']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
@@ -266,7 +266,7 @@ class Trainer():
         all_accuracies = []
         all_accuracies_ema = []
 
-        for _iteration in range(total_iters):
+        for _iteration in tqdm(range(total_iters), ncols=10):
             try:
                 data = next(eval_data)
             except StopIteration:
@@ -274,7 +274,7 @@ class Trainer():
             if max_iter is not None and _iteration == max_iter:
                 break
 
-            image, question, question_len, answer, objects = data['image'], data['question'], data['question_length'], data['answer'], data['objects']
+            image, question, question_len, answer, objects = data['raw_image'], data['question'], data['question_length'], data['answer'], data['boxes']
             answer = answer.long()
             question = Variable(question)
             answer = Variable(answer)
