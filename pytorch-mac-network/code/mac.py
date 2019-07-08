@@ -152,6 +152,8 @@ class ReadUnit(nn.Module):
 
         # sum up the knowledge base according to the distribution
         attn = attn.unsqueeze(-1)
+        if self.training:
+            self.attn_result = attn
         read = (attn * know).sum(1)
 
         return read
