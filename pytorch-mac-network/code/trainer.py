@@ -228,10 +228,10 @@ class Trainer():
         }
         return dict
 
-    def train(self):
+    def train(self, start_epoch=0):
         cfg = self.cfg
         print("Start Training")
-        for epoch in range(self.max_epochs):
+        for epoch in range(start_epoch, self.max_epochs):
             dict = self.train_epoch(epoch)
             self.reduce_lr()
             self.log_results(epoch, dict)
@@ -243,7 +243,6 @@ class Trainer():
         self.writer.close()
         print("Finished Training")
         print("Highest validation accuracy: {} at epoch {}")
-
 
 
     def log_results(self, epoch, dict, max_eval_samples=None):
@@ -427,6 +426,15 @@ class Trainer():
 
             scores = self.model(image, question, question_len, objects)
             loss = self.loss_fn(scores, answer)
+
+            if cfg.TRAIN.SUPERVISE_ATTN:
+                samples_with_attn = [(i, attn[-1]) for i, attn in enumerate(data['attention']) if attn is not None]
+                selection = self.model.mac.read.attn_result.squeeze(-1)[[s[0] for s in samples_with_attn]]
+                ids = torch.LongTensor([s[1] for s in samples_with_attn])
+                attn_supervision = -selection.gather(1, ids.view(-1, 1)).sum()
+
+                loss = loss + attn_supervision
+
             loss.backward()
 
             if self.cfg.TRAIN.CLIP_GRADS:

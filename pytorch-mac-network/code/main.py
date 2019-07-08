@@ -26,6 +26,8 @@ def parse_args():
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--manualSeed', type=int, help='manual seed')
     parser.add_argument('--use_sample', type=bool, default=False)
+    parser.add_argument('--resume', type=str, default='')
+    parser.add_argument('--resume_ema', type=str, default='')
     args = parser.parse_args()
     return args
 
@@ -65,6 +67,8 @@ if __name__ == "__main__":
         logdir = set_logdir(cfg.TRAIN.MAX_STEPS)
         trainer = Trainer(logdir, cfg)
 
+
+
         if cfg.TRAIN.MINI_EPOCHS > 0:
             trainer.train_mini()
 
@@ -77,7 +81,19 @@ if __name__ == "__main__":
         trainer.total_epoch_loss = 0
         trainer.prior_epoch_loss = 10
 
-        trainer.train()
+        start_epoch = 0
+        if args.resume and args.resume_ema:
+            state = torch.load(args.resume)
+            trainer.model.load_state_dict(state['model'])
+            trainer.optimizer.load_state_dict(state['optim'])
+            start_epoch = state['iter'] + 1
+
+            ema_state = torch.load(args.resume_ema)
+            trainer.model_ema.load_state_dict(ema_state['model'])
+
+            print('beginning on epoch', start_epoch)
+
+        trainer.train(start_epoch)
     else:
         raise NotImplementedError
 
