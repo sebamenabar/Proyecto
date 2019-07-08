@@ -228,10 +228,10 @@ class Trainer():
         }
         return dict
 
-    def train(self):
+    def train(self, start_epoch=0):
         cfg = self.cfg
         print("Start Training")
-        for epoch in range(self.max_epochs):
+        for epoch in range(start_epoch, self.max_epochs):
             dict = self.train_epoch(epoch)
             self.reduce_lr()
             self.log_results(epoch, dict)
@@ -243,7 +243,6 @@ class Trainer():
         self.writer.close()
         print("Finished Training")
         print("Highest validation accuracy: {} at epoch {}")
-
 
 
     def log_results(self, epoch, dict, max_eval_samples=None):
