@@ -82,18 +82,18 @@ if __name__ == "__main__":
         trainer.prior_epoch_loss = 10
 
         start_epoch = 0
-        if cfg.resume and cfg.resume_ema:
-            state = torch.load(cfg.resume)
+        if args.resume and args.resume_ema:
+            state = torch.load(args.resume)
             trainer.model.load_state_dict(state['model'])
             trainer.optimizer.load_state_dict(state['optim'])
             start_epoch = state['iter'] + 1
 
-            ema_state = torch.load(cfg.resume_ema)
+            ema_state = torch.load(args.resume_ema)
             trainer.model_ema.load_state_dict(ema_state['model'])
 
             print('beginning on epoch', start_epoch)
 
-        trainer.train()
+        trainer.train(start_epoch)
     else:
         raise NotImplementedError
 
